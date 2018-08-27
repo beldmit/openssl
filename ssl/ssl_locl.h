@@ -230,6 +230,8 @@
 # define SSL_CHACHA20POLY1305    0x00080000U
 # define SSL_ARIA128GCM          0x00100000U
 # define SSL_ARIA256GCM          0x00200000U
+# define SSL_MAGMA               0x00400000U
+# define SSL_KUZNYECHIK          0x00800000U
 
 # define SSL_AESGCM              (SSL_AES128GCM | SSL_AES256GCM)
 # define SSL_AESCCM              (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8)
@@ -252,6 +254,8 @@
 # define SSL_GOST12_256          0x00000080U
 # define SSL_GOST89MAC12         0x00000100U
 # define SSL_GOST12_512          0x00000200U
+# define SSL_MAGMAOMAC           0x00000400U
+# define SSL_KUZNYECHIKOMAC      0x00000800U
 
 /*
  * When adding new digest in the ssl_ciph.c and increment SSL_MD_NUM_IDX make
@@ -270,7 +274,9 @@
 # define SSL_MD_MD5_SHA1_IDX 9
 # define SSL_MD_SHA224_IDX 10
 # define SSL_MD_SHA512_IDX 11
-# define SSL_MAX_DIGEST 12
+# define SSL_MD_MAGMAOMAC_IDX 12
+# define SSL_MD_KUZNYECHIKOMAC_IDX 13
+# define SSL_MAX_DIGEST 14
 
 /* Bits for algorithm2 (handshake digests and other extra flags) */
 
