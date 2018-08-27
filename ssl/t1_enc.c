@@ -117,6 +117,11 @@ int tls1_change_cipher_state(SSL *s, int which)
         else
             s->mac_flags &= ~SSL_MAC_FLAG_READ_MAC_STREAM;
 
+        if (s->s3->tmp.new_cipher->algorithm2 & TLS1_TLSTREE_MAC)
+            s->mac_flags |= SSL_MAC_FLAG_READ_MAC_TLSTREE;
+        else
+            s->mac_flags &= ~SSL_MAC_FLAG_READ_MAC_TLSTREE;
+
         if (s->enc_read_ctx != NULL) {
             reuse_dd = 1;
         } else if ((s->enc_read_ctx = EVP_CIPHER_CTX_new()) == NULL) {
@@ -164,6 +169,11 @@ int tls1_change_cipher_state(SSL *s, int which)
             s->mac_flags |= SSL_MAC_FLAG_WRITE_MAC_STREAM;
         else
             s->mac_flags &= ~SSL_MAC_FLAG_WRITE_MAC_STREAM;
+
+        if (s->s3->tmp.new_cipher->algorithm2 & TLS1_TLSTREE_MAC)
+            s->mac_flags |= SSL_MAC_FLAG_WRITE_MAC_TLSTREE;
+        else
+            s->mac_flags &= ~SSL_MAC_FLAG_WRITE_MAC_TLSTREE;
         if (s->enc_write_ctx != NULL && !SSL_IS_DTLS(s)) {
             reuse_dd = 1;
         } else if ((s->enc_write_ctx = EVP_CIPHER_CTX_new()) == NULL) {

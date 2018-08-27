@@ -944,7 +944,7 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending)
     unsigned char padval;
     int imac_size;
     const EVP_CIPHER *enc;
-
+    /* FIXME beldmit process TLSTREE */
     if (n_recs == 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_ENC,
                  ERR_R_INTERNAL_ERROR);
@@ -1287,6 +1287,10 @@ int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int sending)
     unsigned char header[13];
     int stream_mac = (sending ? (ssl->mac_flags & SSL_MAC_FLAG_WRITE_MAC_STREAM)
                       : (ssl->mac_flags & SSL_MAC_FLAG_READ_MAC_STREAM));
+    /* FIXME beldmit
+    int tlstree_mac = (sending ? (ssl->mac_flags & SSL_MAC_FLAG_WRITE_MAC_TLSTREE)
+                      : (ssl->mac_flags & SSL_MAC_FLAG_READ_MAC_TLSTREE));
+    */ 
     int t;
 
     if (sending) {
