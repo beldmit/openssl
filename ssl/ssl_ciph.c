@@ -134,6 +134,7 @@ static const ssl_cipher_table ssl_cipher_table_kx[] = {
     {SSL_kPSK,      NID_kx_psk},
     {SSL_kSRP,      NID_kx_srp},
     {SSL_kGOST,     NID_kx_gost},
+    /* FIXME beldmit {SSL_kGOST18,     NID_kx_gost18},*/
     {SSL_kANY,      NID_kx_any}
 };
 
@@ -232,6 +233,7 @@ static const SSL_CIPHER cipher_aliases[] = {
     {0, SSL_TXT_kDHEPSK, NULL, 0, SSL_kDHEPSK},
     {0, SSL_TXT_kSRP, NULL, 0, SSL_kSRP},
     {0, SSL_TXT_kGOST, NULL, 0, SSL_kGOST},
+    {0, SSL_TXT_kGOST18, NULL, 0, SSL_kGOST18},
 
     /* server authentication aliases */
     {0, SSL_TXT_aRSA, NULL, 0, 0, SSL_aRSA},
@@ -462,6 +464,9 @@ int ssl_load_ciphers(void)
     if ((disabled_auth_mask & (SSL_aGOST01 | SSL_aGOST12)) ==
         (SSL_aGOST01 | SSL_aGOST12))
         disabled_mkey_mask |= SSL_kGOST;
+
+    if ((disabled_auth_mask & SSL_aGOST12) ==  SSL_aGOST12)
+        disabled_mkey_mask |= SSL_kGOST18;
 
     return 1;
 }
@@ -1702,6 +1707,9 @@ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
         break;
     case SSL_kGOST:
         kx = "GOST";
+        break;
+    case SSL_kGOST18:
+        kx = "GOST18";
         break;
     case SSL_kANY:
         kx = "any";

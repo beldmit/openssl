@@ -3436,6 +3436,11 @@ MSG_PROCESS_RETURN tls_process_client_key_exchange(SSL *s, PACKET *pkt)
             /* SSLfatal() already called */
             goto err;
         }
+/* FIXME beldmit  } else if (alg_k & SSL_kGOST) {
+        if (!tls_process_cke_gost(s, pkt)) {
+            * SSLfatal() already called *
+            goto err;
+        } */
     } else {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                  SSL_F_TLS_PROCESS_CLIENT_KEY_EXCHANGE,

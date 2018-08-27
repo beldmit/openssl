@@ -3316,6 +3316,9 @@ int tls_construct_client_key_exchange(SSL *s, WPACKET *pkt)
     } else if (alg_k & SSL_kGOST) {
         if (!tls_construct_cke_gost(s, pkt))
             goto err;
+/* FIXME beldmit   } else if (alg_k & SSL_kGOST18) {
+        if (!tls_construct_cke_kdf_gost(s, pkt))
+            goto err; */
     } else if (alg_k & SSL_kSRP) {
         if (!tls_construct_cke_srp(s, pkt))
             goto err;

@@ -2670,7 +2670,7 @@ static SSL_CIPHER ssl3_ciphers[] = {
      "GOST2012-MAGMA-MAGMAOMAC",
      NULL,
      0x0300ff88,
-     SSL_kGOST,
+     SSL_kGOST18,
      SSL_aGOST12,
      SSL_MAGMA,
      SSL_MAGMAOMAC,
@@ -2686,7 +2686,7 @@ static SSL_CIPHER ssl3_ciphers[] = {
      "GOST2012-KUZNYECHIK-KUZNYECHIKOMAC",
      NULL,
      0x0300ff89,
-     SSL_kGOST,
+     SSL_kGOST18,
      SSL_aGOST12,
      SSL_KUZNYECHIK,
      SSL_KUZNYECHIKOMAC,
@@ -4360,6 +4360,9 @@ int ssl3_get_req_cert_type(SSL *s, WPACKET *pkt)
     if (s->version >= TLS1_VERSION && (alg_k & SSL_kGOST))
             return WPACKET_put_bytes_u8(pkt, TLS_CT_GOST01_SIGN)
                     && WPACKET_put_bytes_u8(pkt, TLS_CT_GOST12_SIGN)
+                    && WPACKET_put_bytes_u8(pkt, TLS_CT_GOST12_512_SIGN);
+    if (s->version >= TLS1_2_VERSION && (alg_k & SSL_kGOST18))
+            return WPACKET_put_bytes_u8(pkt, TLS_CT_GOST12_SIGN)
                     && WPACKET_put_bytes_u8(pkt, TLS_CT_GOST12_512_SIGN);
 #endif
 

@@ -1065,6 +1065,10 @@ static int ssl_get_keyex(const char **pname, const SSL *ssl)
         *pname = "GOST";
         return SSL_kGOST;
     }
+    if (alg_k & SSL_kGOST18) {
+        *pname = "GOST18";
+        return SSL_kGOST18;
+    }
     *pname = "UNKNOWN";
     return 0;
 }
