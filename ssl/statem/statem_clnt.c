@@ -3260,6 +3260,159 @@ static int tls_construct_cke_gost(SSL *s, WPACKET *pkt)
 #endif
 }
 
+static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
+{/* FIXME beldmit - function id to be renamed either */
+#ifndef OPENSSL_NO_GOST
+/*
+ * The CTR_OMAC cipher suites use the KExp15 and the KImp15 algorithms
+   defined in Section 5.2 for key wrapping.
+
+   The export representation of the PS value is calculated as follows.
+
+   1.  The client generates the keys K^EXP_MAC and K^EXP_ENC using the
+   KEG function described in Section 5.3:
+
+      H = HASH(r_C | r_S);
+
+      K^EXP_MAC | K^EXP_ENC = KEG(k_eph, Q_S, H).
+
+   2.  The client generates export representation of the premaster
+   secret value PS:
+
+      IV = H[25..24 + n / 2];
+
+      PSExp = KExp15(PS, K^EXP_MAC, K^EXP_ENC, IV).
+
+   3.  The client creates the PSKeyTransport structure that is defined
+   as follows:
+
+
+   PSKeyTransport ::= SEQUENCE {
+       PSEXP OCTET STRING,
+       ephemeralPublicKey SubjectPublicKeyInfo
+   }
+   SubjectPublicKeyInfo ::= SEQUENCE {
+       algorithm AlgorithmIdentifier,
+       subjectPublicKey BITSTRING
+   }
+   AlgorithmIdentifier ::= SEQUENCE {
+       algorithm OBJECT IDENTIFIER,
+       parameters ANY OPTIONAL
+   }
+
+   Here the PSEXP field contains the PSExp value and the
+   ephemeralPublicKey field contains the Q_eph value. */
+    /* GOST 2018 key exchange message creation */
+    unsigned char rnd_dgst[32], tmp[255];
+    unsigned int md_len;
+    EVP_MD_CTX * hash = NULL;
+    EVP_PKEY_CTX *pkey_ctx = NULL;
+    X509 *peer_cert;
+    unsigned char *pms = NULL;
+    size_t pmslen = 0;
+    int cipher_nid = NID_undef;
+    size_t msglen;
+
+    if ((s->s3->tmp.new_cipher->algorithm_enc & SSL_MAGMA) != 0)
+        cipher_nid = NID_magma_ctr;
+    else if ((s->s3->tmp.new_cipher->algorithm_enc & SSL_KUZNYECHIK) != 0)
+        cipher_nid = NID_grasshopper_ctr;
+    else {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+    }
+
+    hash = EVP_MD_CTX_new();
+    if (hash == NULL
+        || EVP_DigestInit(hash, EVP_get_digestbynid(NID_id_GostR3411_2012_256)) <= 0
+        || EVP_DigestUpdate(hash, s->s3->client_random,
+                            SSL3_RANDOM_SIZE) <= 0
+        || EVP_DigestUpdate(hash, s->s3->server_random,
+                            SSL3_RANDOM_SIZE) <= 0
+        || EVP_DigestFinal_ex(hash, rnd_dgst, &md_len) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    EVP_MD_CTX_free(hash);
+    hash = NULL;
+
+    /* Pre-master secret  - random bytes */
+    pmslen = 32;
+    pms = OPENSSL_malloc(pmslen);
+    if (pms == NULL) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    if (RAND_bytes(pms, (int)pmslen) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    /*
+     * Get server certificate PKEY and create ctx from it
+     */
+    peer_cert = s->session->peer;
+    if (!peer_cert) {
+        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+               SSL_R_NO_GOST_CERTIFICATE_SENT_BY_PEER);
+        return 0;
+    }
+
+    pkey_ctx = EVP_PKEY_CTX_new(X509_get0_pubkey(peer_cert), NULL);
+    if (pkey_ctx == NULL) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+
+    if (EVP_PKEY_encrypt_init(pkey_ctx) <= 0 ) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    };
+
+ /* FIXME beldmit
+  * Temporary reuse EVP_PKEY_CTRL_SET_IV, make choice in engine code
+  * */
+    if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_ENCRYPT,
+                          EVP_PKEY_CTRL_SET_IV, 32, rnd_dgst) < 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 SSL_R_LIBRARY_BUG);
+        goto err;
+    }
+/* TODO beldmit fix it in engine */ 
+    if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_ENCRYPT,
+                          EVP_PKEY_CTRL_CIPHER, cipher_nid, NULL) < 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 SSL_R_LIBRARY_BUG);
+        goto err;
+    }
+/* TODO beldmit fix it in engine - MAC/ENC_KEY, key export */ 
+    msglen = 255;
+    if (EVP_PKEY_encrypt(pkey_ctx, tmp, &msglen, pms, pmslen) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 SSL_R_LIBRARY_BUG);
+        goto err;
+    }
+
+/* TODO beldmit
+ * ASN1 export of blob
+ * */
+ err:
+    EVP_PKEY_CTX_free(pkey_ctx);
+    OPENSSL_clear_free(pms, pmslen);
+    return 0;
+#else
+    SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+             ERR_R_INTERNAL_ERROR);
+    return 0;
+#endif
+}
+
 static int tls_construct_cke_srp(SSL *s, WPACKET *pkt)
 {
 #ifndef OPENSSL_NO_SRP
@@ -3316,9 +3469,9 @@ int tls_construct_client_key_exchange(SSL *s, WPACKET *pkt)
     } else if (alg_k & SSL_kGOST) {
         if (!tls_construct_cke_gost(s, pkt))
             goto err;
-/* FIXME beldmit   } else if (alg_k & SSL_kGOST18) {
-        if (!tls_construct_cke_kdf_gost(s, pkt))
-            goto err; */
+    } else if (alg_k & SSL_kGOST18) {
+        if (!tls_construct_cke_gost18(s, pkt))
+            goto err;
     } else if (alg_k & SSL_kSRP) {
         if (!tls_construct_cke_srp(s, pkt))
             goto err;

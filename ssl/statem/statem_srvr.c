@@ -3386,6 +3386,138 @@ static int tls_process_cke_gost(SSL *s, PACKET *pkt)
 #endif
 }
 
+static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
+{/* FIXME beldmit - function id to be renamed either*/
+#ifndef OPENSSL_NO_GOST
+
+   /* After receiving the ClientKeyExchange message the server process it
+   as follows.
+
+   1.  Checks the next three conditions fulfilling and terminates the
+   connection with fatal error if not.
+
+   o  Q_eph is on the same curve as server public key;
+
+   o  Q_eph is not equal to zero point;
+
+   o  q * Q_eph is not equal to zero point.
+
+   2.  Generates the keys K^EXP_MAC and K^EXP_ENC using the KEG function
+   described in Section 5.3:
+
+      H = HASH(r_C | r_S);
+
+      K^EXP_MAC | K^EXP_ENC = KEG(k_S, Q_eph, H).
+
+   3.  Extracts the common secret PS from the export representation
+   PSExp:
+
+      IV = H[25..24+n/2];
+
+      PS = KImp15(PSExp, K^EXP_MAC, K^EXP_ENC, IV). */
+    EVP_PKEY_CTX *pkey_ctx;
+    EVP_PKEY *client_pub_pkey = NULL, *pk = NULL;
+    unsigned char premaster_secret[32];
+    const unsigned char *start;
+    size_t outlen = 32, inlen;
+    unsigned int asn1id, asn1len;
+    int ret = 0;
+    PACKET encdata;
+
+    /* Get our certificate private key */
+		pk = s->cert->pkeys[SSL_PKEY_GOST12_512].privatekey;
+    if (pk == NULL) {
+      pk = s->cert->pkeys[SSL_PKEY_GOST12_256].privatekey;
+    }
+
+    pkey_ctx = EVP_PKEY_CTX_new(pk, NULL);
+    if (pkey_ctx == NULL) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+    if (EVP_PKEY_decrypt_init(pkey_ctx) <= 0) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+    /*
+     * If client certificate is present and is of the same type, maybe
+     * use it for key exchange.  Don't mind errors from
+     * EVP_PKEY_derive_set_peer, because it is completely valid to use a
+     * client certificate for authorization only.
+     */
+    client_pub_pkey = X509_get0_pubkey(s->session->peer);
+    if (client_pub_pkey) {
+        if (EVP_PKEY_derive_set_peer(pkey_ctx, client_pub_pkey) <= 0)
+            ERR_clear_error();
+    }
+    /* Decrypt session key */
+    if (!PACKET_get_1(pkt, &asn1id)
+            || asn1id != (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
+            || !PACKET_peek_1(pkt, &asn1len)) {
+        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 SSL_R_DECRYPTION_FAILED);
+        goto err;
+    }
+    if (asn1len == 0x81) {
+        /*
+         * Long form length. Should only be one byte of length. Anything else
+         * isn't supported.
+         * We did a successful peek before so this shouldn't fail
+         */
+        if (!PACKET_forward(pkt, 1)) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                     SSL_R_DECRYPTION_FAILED);
+            goto err;
+        }
+    } else  if (asn1len >= 0x80) {
+        /*
+         * Indefinite length, or more than one long form length bytes. We don't
+         * support it
+         */
+        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 SSL_R_DECRYPTION_FAILED);
+        goto err;
+    } /* else short form length */
+
+    if (!PACKET_as_length_prefixed_1(pkt, &encdata)) {
+        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 SSL_R_DECRYPTION_FAILED);
+        goto err;
+    }
+    inlen = PACKET_remaining(&encdata);
+    start = PACKET_data(&encdata);
+
+    if (EVP_PKEY_decrypt(pkey_ctx, premaster_secret, &outlen, start,
+                         inlen) <= 0) {
+        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 SSL_R_DECRYPTION_FAILED);
+        goto err;
+    }
+    /* Generate master secret */
+    if (!ssl_generate_master_secret(s, premaster_secret,
+                                    sizeof(premaster_secret), 0)) {
+        /* SSLfatal() already called */
+        goto err;
+    }
+    /* Check if pubkey from client certificate was used */
+    if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, -1, EVP_PKEY_CTRL_PEER_KEY, 2,
+                          NULL) > 0)
+        s->statem.no_cert_verify = 1;
+
+    ret = 1;
+ err:
+    EVP_PKEY_CTX_free(pkey_ctx);
+    return ret;
+#else
+    /* Should never happen */
+    SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+             ERR_R_INTERNAL_ERROR);
+    return 0;
+#endif
+}
+
 MSG_PROCESS_RETURN tls_process_client_key_exchange(SSL *s, PACKET *pkt)
 {
     unsigned long alg_k;
@@ -3436,11 +3568,11 @@ MSG_PROCESS_RETURN tls_process_client_key_exchange(SSL *s, PACKET *pkt)
             /* SSLfatal() already called */
             goto err;
         }
-/* FIXME beldmit  } else if (alg_k & SSL_kGOST) {
-        if (!tls_process_cke_gost(s, pkt)) {
-            * SSLfatal() already called *
+    } else if (alg_k & SSL_kGOST18) {
+        if (!tls_process_cke_gost18(s, pkt)) {
+            /* SSLfatal() already called */
             goto err;
-        } */
+        }
     } else {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                  SSL_F_TLS_PROCESS_CLIENT_KEY_EXCHANGE,
