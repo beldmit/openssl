@@ -3389,45 +3389,18 @@ static int tls_process_cke_gost(SSL *s, PACKET *pkt)
 static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
 {/* FIXME beldmit - function id to be renamed either*/
 #ifndef OPENSSL_NO_GOST
-
-   /* After receiving the ClientKeyExchange message the server process it
-   as follows.
-
-   1.  Checks the next three conditions fulfilling and terminates the
-   connection with fatal error if not.
-
-   o  Q_eph is on the same curve as server public key;
-
-   o  Q_eph is not equal to zero point;
-
-   o  q * Q_eph is not equal to zero point.
-
-   2.  Generates the keys K^EXP_MAC and K^EXP_ENC using the KEG function
-   described in Section 5.3:
-
-      H = HASH(r_C | r_S);
-
-      K^EXP_MAC | K^EXP_ENC = KEG(k_S, Q_eph, H).
-
-   3.  Extracts the common secret PS from the export representation
-   PSExp:
-
-      IV = H[25..24+n/2];
-
-      PS = KImp15(PSExp, K^EXP_MAC, K^EXP_ENC, IV). */
     unsigned char rnd_dgst[32];
     unsigned int md_len;
     EVP_MD_CTX * hash = NULL;
     EVP_PKEY_CTX *pkey_ctx = NULL;
-    EVP_PKEY *client_pub_pkey = NULL, *pk = NULL;
+    EVP_PKEY *pk = NULL;
     unsigned char premaster_secret[32];
     const unsigned char *start = NULL;
     size_t outlen = 32, inlen = 0;
-    /*unsigned int asn1id, asn1len*/;
+    unsigned int asn1id, asn1len;
     int ret = 0;
-    /*PACKET encdata;*/
+    PACKET encdata;
     int cipher_nid = NID_undef;
-    /*size_t msglen;*/
 
     if ((s->s3->tmp.new_cipher->algorithm_enc & SSL_MAGMA) != 0)
         cipher_nid = NID_magma_ctr;
@@ -3470,8 +3443,8 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
                  ERR_R_INTERNAL_ERROR);
         return 0;
     }
- /* FIXME beldmit
-  * Temporary reuse EVP_PKEY_CTRL_SET_IV, make choice in engine code
+ /* 
+  * Reuse EVP_PKEY_CTRL_SET_IV, make choice in engine code depending on size
   * */
     if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_DECRYPT,
                           EVP_PKEY_CTRL_SET_IV, 32, rnd_dgst) < 0) {
@@ -3479,25 +3452,14 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
                  SSL_R_LIBRARY_BUG);
         goto err;
     }
-/* TODO beldmit fix it in engine */ 
+
     if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_DECRYPT,
                           EVP_PKEY_CTRL_CIPHER, cipher_nid, NULL) < 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
                  SSL_R_LIBRARY_BUG);
         goto err;
     }
-    /*
-     * If client certificate is present and is of the same type, maybe
-     * use it for key exchange.  Don't mind errors from
-     * EVP_PKEY_derive_set_peer, because it is completely valid to use a
-     * client certificate for authorization only.
-     */
-    client_pub_pkey = X509_get0_pubkey(s->session->peer);
-    if (client_pub_pkey) {
-        if (EVP_PKEY_derive_set_peer(pkey_ctx, client_pub_pkey) <= 0)
-            ERR_clear_error();
-    }
-#if 0
+
     /* Decrypt session key */
     if (!PACKET_get_1(pkt, &asn1id)
             || asn1id != (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
@@ -3534,8 +3496,7 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
     }
     inlen = PACKET_remaining(&encdata);
     start = PACKET_data(&encdata);
-#endif
-/* TODO beldmit ASN1 import*/
+
     if (EVP_PKEY_decrypt(pkey_ctx, premaster_secret, &outlen, start,
                          inlen) <= 0) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,

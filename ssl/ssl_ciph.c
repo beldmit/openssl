@@ -134,7 +134,7 @@ static const ssl_cipher_table ssl_cipher_table_kx[] = {
     {SSL_kPSK,      NID_kx_psk},
     {SSL_kSRP,      NID_kx_srp},
     {SSL_kGOST,     NID_kx_gost},
-    /* FIXME beldmit {SSL_kGOST18,     NID_kx_gost18},*/
+    {SSL_kGOST18,   NID_kx_gost},/* FIXME beldmit */
     {SSL_kANY,      NID_kx_any}
 };
 

@@ -3261,47 +3261,8 @@ static int tls_construct_cke_gost(SSL *s, WPACKET *pkt)
 }
 
 static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
-{/* FIXME beldmit - function id to be renamed either */
+{
 #ifndef OPENSSL_NO_GOST
-/*
- * The CTR_OMAC cipher suites use the KExp15 and the KImp15 algorithms
-   defined in Section 5.2 for key wrapping.
-
-   The export representation of the PS value is calculated as follows.
-
-   1.  The client generates the keys K^EXP_MAC and K^EXP_ENC using the
-   KEG function described in Section 5.3:
-
-      H = HASH(r_C | r_S);
-
-      K^EXP_MAC | K^EXP_ENC = KEG(k_eph, Q_S, H).
-
-   2.  The client generates export representation of the premaster
-   secret value PS:
-
-      IV = H[25..24 + n / 2];
-
-      PSExp = KExp15(PS, K^EXP_MAC, K^EXP_ENC, IV).
-
-   3.  The client creates the PSKeyTransport structure that is defined
-   as follows:
-
-
-   PSKeyTransport ::= SEQUENCE {
-       PSEXP OCTET STRING,
-       ephemeralPublicKey SubjectPublicKeyInfo
-   }
-   SubjectPublicKeyInfo ::= SEQUENCE {
-       algorithm AlgorithmIdentifier,
-       subjectPublicKey BITSTRING
-   }
-   AlgorithmIdentifier ::= SEQUENCE {
-       algorithm OBJECT IDENTIFIER,
-       parameters ANY OPTIONAL
-   }
-
-   Here the PSEXP field contains the PSExp value and the
-   ephemeralPublicKey field contains the Q_eph value. */
     /* GOST 2018 key exchange message creation */
     unsigned char rnd_dgst[32], tmp[255];
     unsigned int md_len;
@@ -3337,7 +3298,7 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
     EVP_MD_CTX_free(hash);
     hash = NULL;
 
-    /* Pre-master secret  - random bytes */
+    /* Pre-master secret - random bytes */
     pmslen = 32;
     pms = OPENSSL_malloc(pmslen);
     if (pms == NULL) {
@@ -3375,8 +3336,8 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
         goto err;
     };
 
- /* FIXME beldmit
-  * Temporary reuse EVP_PKEY_CTRL_SET_IV, make choice in engine code
+ /* 
+  * Reuse EVP_PKEY_CTRL_SET_IV, make choice in engine code
   * */
     if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_ENCRYPT,
                           EVP_PKEY_CTRL_SET_IV, 32, rnd_dgst) < 0) {
@@ -3384,14 +3345,14 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
                  SSL_R_LIBRARY_BUG);
         goto err;
     }
-/* TODO beldmit fix it in engine */ 
+
     if (EVP_PKEY_CTX_ctrl(pkey_ctx, -1, EVP_PKEY_OP_ENCRYPT,
                           EVP_PKEY_CTRL_CIPHER, cipher_nid, NULL) < 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
                  SSL_R_LIBRARY_BUG);
         goto err;
     }
-/* TODO beldmit fix it in engine - MAC/ENC_KEY, key export */ 
+
     msglen = 255;
     if (EVP_PKEY_encrypt(pkey_ctx, tmp, &msglen, pms, pmslen) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
@@ -3399,9 +3360,18 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
         goto err;
     }
 
-/* TODO beldmit
- * ASN1 export of blob
- * */
+    if (!WPACKET_put_bytes_u8(pkt, V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
+            || (msglen >= 0x80 && !WPACKET_put_bytes_u8(pkt, 0x81))
+            || !WPACKET_sub_memcpy_u8(pkt, tmp, msglen)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    EVP_PKEY_CTX_free(pkey_ctx);
+    s->s3->tmp.pms = pms;
+    s->s3->tmp.pmslen = pmslen;
+		return 1;
  err:
     EVP_PKEY_CTX_free(pkey_ctx);
     OPENSSL_clear_free(pms, pmslen);
