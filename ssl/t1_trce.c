@@ -443,6 +443,8 @@ static const ssl_trace_tbl ssl_ciphers_tbl[] = {
     {0xFEFF, "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
     {0xFF85, "GOST2012-GOST8912-GOST8912"},
     {0xFF87, "GOST2012-NULL-GOST12"},
+    {0xFF88, "GOST2012-MAGMA-MAGMAOMAC"},
+    {0xFF89, "GOST2012-KUZNYECHIK-KUZNYECHIKOMAC"},
 };
 
 /* Compression methods */
@@ -1111,7 +1113,13 @@ static int ssl_print_client_keyex(BIO *bio, int indent, const SSL *ssl,
         if (!ssl_print_hexbuf(bio, indent + 2, "ecdh_Yc", 1, &msg, &msglen))
             return 0;
         break;
-
+#ifndef OPENSSL_NO_GOST
+    case SSL_kGOST:
+    case SSL_kGOST18:
+        if (!ssl_print_hexbuf(bio, indent + 2, "GOST-wrapped PreMasterSecret", 1, &msg, &msglen))
+            return 0;
+        break;
+#endif
     }
 
     return !msglen;
