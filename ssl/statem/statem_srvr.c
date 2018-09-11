@@ -3460,14 +3460,14 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
         goto err;
     }
 
-    /* Decrypt session key */
+    /* Decrypt session key
     if (!PACKET_get_1(pkt, &asn1id)
             || asn1id != (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
             || !PACKET_peek_1(pkt, &asn1len)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
                  SSL_R_DECRYPTION_FAILED);
         goto err;
-    }
+    }*/
     if (asn1len == 0x81) {
         /*
          * Long form length. Should only be one byte of length. Anything else

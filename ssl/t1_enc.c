@@ -478,6 +478,7 @@ size_t tls1_final_finish_mac(SSL *s, const char *str, size_t slen,
         return 0;
     }
     OPENSSL_cleanse(hash, hashlen);
+    /* FIXME beldmit 32 bytes for new GOST ciphersuites*/
     return TLS1_FINISH_MAC_LENGTH;
 }
 
