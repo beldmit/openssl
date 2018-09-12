@@ -24,6 +24,24 @@
 #include "internal/nelem.h"
 #include "../ssl/ssl_locl.h"
 
+#ifndef OPENSSL_NO_TLS1_3
+
+static SSL_SESSION *clientpsk = NULL;
+static SSL_SESSION *serverpsk = NULL;
+static const char *pskid = "Identity";
+static const char *srvid;
+
+static int use_session_cb(SSL *ssl, const EVP_MD *md, const unsigned char **id,
+                          size_t *idlen, SSL_SESSION **sess);
+static int find_session_cb(SSL *ssl, const unsigned char *identity,
+                           size_t identity_len, SSL_SESSION **sess);
+
+static int use_session_cb_cnt = 0;
+static int find_session_cb_cnt = 0;
+
+static SSL_SESSION *create_a_psk(SSL *ssl);
+#endif
+
 static char *cert = NULL;
 static char *privkey = NULL;
 static char *srpvfile = NULL;
@@ -1430,6 +1448,61 @@ static int test_stateful_tickets(int idx)
 {
     return test_tickets(1, idx);
 }
+
+static int test_psk_tickets(void)
+{
+    SSL_CTX *sctx = NULL, *cctx = NULL;
+    SSL *serverssl = NULL, *clientssl = NULL;
+    int testresult = 0;
+    int sess_id_ctx = 1;
+
+    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(), TLS_client_method(),
+                                       TLS1_VERSION, TLS_MAX_VERSION, &sctx,
+                                       &cctx, NULL, NULL))
+            || !TEST_true(SSL_CTX_set_session_id_context(sctx,
+                                                         (void *)&sess_id_ctx,
+                                                         sizeof(sess_id_ctx))))
+        goto end;
+
+    SSL_CTX_set_session_cache_mode(cctx, SSL_SESS_CACHE_CLIENT
+                                         | SSL_SESS_CACHE_NO_INTERNAL_STORE);
+    SSL_CTX_set_psk_use_session_callback(cctx, use_session_cb);
+    SSL_CTX_set_psk_find_session_callback(sctx, find_session_cb);
+    SSL_CTX_sess_set_new_cb(cctx, new_session_cb);
+    use_session_cb_cnt = 0;
+    find_session_cb_cnt = 0;
+    srvid = pskid;
+    new_called = 0;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
+                                      NULL, NULL)))
+        goto end;
+    clientpsk = serverpsk = create_a_psk(clientssl);
+    if (!TEST_ptr(clientpsk))
+        goto end;
+    SSL_SESSION_up_ref(clientpsk);
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl,
+                                                SSL_ERROR_NONE))
+            || !TEST_int_eq(1, find_session_cb_cnt)
+            || !TEST_int_eq(1, use_session_cb_cnt)
+               /* We should always get 1 ticket when using external PSK */
+            || !TEST_int_eq(1, new_called))
+        goto end;
+
+    testresult = 1;
+
+ end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    SSL_SESSION_free(clientpsk);
+    SSL_SESSION_free(serverpsk);
+    clientpsk = serverpsk = NULL;
+
+    return testresult;
+}
 #endif
 
 #define USE_NULL            0
@@ -1806,14 +1879,6 @@ static int test_set_sigalgs(int idx)
 #endif
 
 #ifndef OPENSSL_NO_TLS1_3
-
-static SSL_SESSION *clientpsk = NULL;
-static SSL_SESSION *serverpsk = NULL;
-static const char *pskid = "Identity";
-static const char *srvid;
-
-static int use_session_cb_cnt = 0;
-static int find_session_cb_cnt = 0;
 static int psk_client_cb_cnt = 0;
 static int psk_server_cb_cnt = 0;
 
@@ -1944,6 +2009,35 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity,
 #define TLS13_AES_256_GCM_SHA384_BYTES  ((const unsigned char *)"\x13\x02")
 #define TLS13_AES_128_GCM_SHA256_BYTES  ((const unsigned char *)"\x13\x01")
 
+
+static SSL_SESSION *create_a_psk(SSL *ssl)
+{
+    const SSL_CIPHER *cipher = NULL;
+    const unsigned char key[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+        0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+        0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
+        0x2c, 0x2d, 0x2e, 0x2f
+    };
+    SSL_SESSION *sess = NULL;
+
+    cipher = SSL_CIPHER_find(ssl, TLS13_AES_256_GCM_SHA384_BYTES);
+    sess = SSL_SESSION_new();
+    if (!TEST_ptr(sess)
+            || !TEST_ptr(cipher)
+            || !TEST_true(SSL_SESSION_set1_master_key(sess, key,
+                                                      sizeof(key)))
+            || !TEST_true(SSL_SESSION_set_cipher(sess, cipher))
+            || !TEST_true(
+                    SSL_SESSION_set_protocol_version(sess,
+                                                     TLS1_3_VERSION))) {
+        SSL_SESSION_free(sess);
+        return NULL;
+    }
+    return sess;
+}
+
 /*
  * Helper method to setup objects for early data test. Caller frees objects on
  * error.
@@ -1989,26 +2083,8 @@ static int setupearly_data_test(SSL_CTX **cctx, SSL_CTX **sctx, SSL **clientssl,
         return 0;
 
     if (idx == 2) {
-        /* Create the PSK */
-        const SSL_CIPHER *cipher = NULL;
-        const unsigned char key[] = {
-            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
-            0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
-            0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
-            0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
-            0x2c, 0x2d, 0x2e, 0x2f
-        };
-
-        cipher = SSL_CIPHER_find(*clientssl, TLS13_AES_256_GCM_SHA384_BYTES);
-        clientpsk = SSL_SESSION_new();
+        clientpsk = create_a_psk(*clientssl);
         if (!TEST_ptr(clientpsk)
-                || !TEST_ptr(cipher)
-                || !TEST_true(SSL_SESSION_set1_master_key(clientpsk, key,
-                                                          sizeof(key)))
-                || !TEST_true(SSL_SESSION_set_cipher(clientpsk, cipher))
-                || !TEST_true(
-                        SSL_SESSION_set_protocol_version(clientpsk,
-                                                         TLS1_3_VERSION))
                    /*
                     * We just choose an arbitrary value for max_early_data which
                     * should be big enough for testing purposes.
@@ -5265,9 +5341,11 @@ static int test_ticket_callbacks(int tst)
  * Test 1: TLSv1.2, server continues to read/write after client shutdown
  * Test 2: TLSv1.3, no pending NewSessionTicket messages
  * Test 3: TLSv1.3, pending NewSessionTicket messages
- * Test 4: TLSv1.3, server continues to read/write after client shutdown, client
- *                  reads it
- * Test 5: TLSv1.3, server continues to read/write after client shutdown, client
+ * Test 4: TLSv1.3, server continues to read/write after client shutdown, server
+ *                  sends key update, client reads it
+ * Test 5: TLSv1.3, server continues to read/write after client shutdown, server
+ *                  sends CertificateRequest, client reads and ignores it
+ * Test 6: TLSv1.3, server continues to read/write after client shutdown, client
  *                  doesn't read it
  */
 static int test_shutdown(int tst)
@@ -5278,6 +5356,7 @@ static int test_shutdown(int tst)
     char msg[] = "A test message";
     char buf[80];
     size_t written, readbytes;
+    SSL_SESSION *sess;
 
 #ifdef OPENSSL_NO_TLS1_2
     if (tst <= 1)
@@ -5293,17 +5372,26 @@ static int test_shutdown(int tst)
                                        TLS1_VERSION,
                                        (tst <= 1) ? TLS1_2_VERSION
                                                   : TLS1_3_VERSION,
-                                       &sctx, &cctx, cert, privkey))
-            || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
+                                       &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (tst == 5)
+        SSL_CTX_set_post_handshake_auth(cctx, 1);
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
                                              NULL, NULL)))
         goto end;
 
     if (tst == 3) {
         if (!TEST_true(create_bare_ssl_connection(serverssl, clientssl,
-                                                  SSL_ERROR_NONE)))
+                                                  SSL_ERROR_NONE))
+                || !TEST_ptr_ne(sess = SSL_get_session(clientssl), NULL)
+                || !TEST_false(SSL_SESSION_is_resumable(sess)))
             goto end;
     } else if (!TEST_true(create_ssl_connection(serverssl, clientssl,
-                                              SSL_ERROR_NONE))) {
+                                              SSL_ERROR_NONE))
+            || !TEST_ptr_ne(sess = SSL_get_session(clientssl), NULL)
+            || !TEST_true(SSL_SESSION_is_resumable(sess))) {
         goto end;
     }
 
@@ -5324,13 +5412,30 @@ static int test_shutdown(int tst)
                     * Even though we're shutdown on receive we should still be
                     * able to write.
                     */
-                || !TEST_true(SSL_write(serverssl, msg, sizeof(msg)))
-                || !TEST_int_eq(SSL_shutdown(serverssl), 1))
+                || !TEST_true(SSL_write(serverssl, msg, sizeof(msg))))
             goto end;
-        if (tst == 4) {
-                   /* Should still be able to read data from server */
+        if (tst == 4
+                && !TEST_true(SSL_key_update(serverssl,
+                                             SSL_KEY_UPDATE_REQUESTED)))
+            goto end;
+        if (tst == 5) {
+            SSL_set_verify(serverssl, SSL_VERIFY_PEER, NULL);
+            if (!TEST_true(SSL_verify_client_post_handshake(serverssl)))
+                goto end;
+        }
+        if ((tst == 4 || tst == 5)
+                && !TEST_true(SSL_write(serverssl, msg, sizeof(msg))))
+            goto end;
+        if (!TEST_int_eq(SSL_shutdown(serverssl), 1))
+            goto end;
+        if (tst == 4 || tst == 5) {
+            /* Should still be able to read data from server */
             if (!TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf),
-                                          &readbytes))
+                                       &readbytes))
+                    || !TEST_size_t_eq(readbytes, sizeof(msg))
+                    || !TEST_int_eq(memcmp(msg, buf, readbytes), 0)
+                    || !TEST_true(SSL_read_ex(clientssl, buf, sizeof(buf),
+                                              &readbytes))
                     || !TEST_size_t_eq(readbytes, sizeof(msg))
                     || !TEST_int_eq(memcmp(msg, buf, readbytes), 0))
                 goto end;
@@ -5354,19 +5459,23 @@ static int test_shutdown(int tst)
                     */
                 || !TEST_false(SSL_write_ex(serverssl, msg, sizeof(msg), &written))
                 || !TEST_int_eq(SSL_shutdown(clientssl), 1)
+                || !TEST_ptr_ne(sess = SSL_get_session(clientssl), NULL)
+                || !TEST_true(SSL_SESSION_is_resumable(sess))
                 || !TEST_int_eq(SSL_shutdown(serverssl), 1))
             goto end;
-    } else if (tst == 4) {
+    } else if (tst == 4 || tst == 5) {
         /*
          * In this test the client has sent close_notify and it has been
          * received by the server which has responded with a close_notify. The
          * client needs to read the close_notify sent by the server.
          */
-        if (!TEST_int_eq(SSL_shutdown(clientssl), 1))
+        if (!TEST_int_eq(SSL_shutdown(clientssl), 1)
+                || !TEST_ptr_ne(sess = SSL_get_session(clientssl), NULL)
+                || !TEST_true(SSL_SESSION_is_resumable(sess)))
             goto end;
     } else {
         /*
-         * tst == 5
+         * tst == 6
          *
          * The client has sent close_notify and is expecting a close_notify
          * back, but instead there is application data first. The shutdown
@@ -5426,6 +5535,7 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_TLS1_3
     ADD_ALL_TESTS(test_stateful_tickets, 3);
     ADD_ALL_TESTS(test_stateless_tickets, 3);
+    ADD_TEST(test_psk_tickets);
 #endif
     ADD_ALL_TESTS(test_ssl_set_bio, TOTAL_SSL_SET_BIO_TESTS);
     ADD_TEST(test_ssl_bio_pop_next_bio);
@@ -5488,7 +5598,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_ssl_pending, 2);
     ADD_ALL_TESTS(test_ssl_get_shared_ciphers, OSSL_NELEM(shared_ciphers_data));
     ADD_ALL_TESTS(test_ticket_callbacks, 12);
-    ADD_ALL_TESTS(test_shutdown, 6);
+    ADD_ALL_TESTS(test_shutdown, 7);
     return 1;
 }
 

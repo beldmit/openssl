@@ -7,7 +7,32 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
- Changes between 1.1.0i and 1.1.1 [xx XXX xxxx]
+ Changes between 1.1.1 and 1.1.2 [xx XXX xxxx]
+
+  *) AES-XTS mode now enforces that its two keys are different to mitigate
+     the attacked described in "Efficient Instantiations of Tweakable
+     Blockciphers and Refinements to Modes OCB and PMAC" by Phillip Rogaway.
+     Details of this attack can be obtained from:
+     http://web.cs.ucdavis.edu/%7Erogaway/papers/offsets.pdf
+     [Paul Dale]
+
+  *) Rename the object files, i.e. give them other names than in previous
+     versions.  Their names now include the name of the final product, as
+     well as its type mnemonic (bin, lib, shlib).
+     [Richard Levitte]
+
+ Changes between 1.1.0i and 1.1.1 [11 Sep 2018]
+
+  *) Add a new ClientHello callback. Provides a callback interface that gives
+     the application the ability to adjust the nascent SSL object at the
+     earliest stage of ClientHello processing, immediately after extensions have
+     been collected but before they have been processed. In particular, this
+     callback can adjust the supported TLS versions in response to the contents
+     of the ClientHello
+     [Benjamin Kaduk]
+
+  *) Add SM2 base algorithm support.
+     [Jack Lloyd]
 
   *) s390x assembly pack: add (improved) hardware-support for the following
      cryptographic primitives: sha3, shake, aes-gcm, aes-ccm, aes-ctr, aes-ofb,

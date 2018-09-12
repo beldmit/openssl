@@ -711,6 +711,7 @@ ENGINE_F_INT_ENGINE_MODULE_INIT:187:int_engine_module_init
 ENGINE_F_OSSL_HMAC_INIT:200:ossl_hmac_init
 EVP_F_AESNI_INIT_KEY:165:aesni_init_key
 EVP_F_AES_GCM_CTRL:196:aes_gcm_ctrl
+EVP_F_AES_GCM_TLS_CIPHER:207:aes_gcm_tls_cipher
 EVP_F_AES_INIT_KEY:133:aes_init_key
 EVP_F_AES_OCB_CIPHER:169:aes_ocb_cipher
 EVP_F_AES_T4_INIT_KEY:178:aes_t4_init_key
@@ -805,6 +806,7 @@ EVP_F_PKEY_SET_TYPE:158:pkey_set_type
 EVP_F_RC2_MAGIC_TO_METH:109:rc2_magic_to_meth
 EVP_F_RC5_CTRL:125:rc5_ctrl
 EVP_F_S390X_AES_GCM_CTRL:201:s390x_aes_gcm_ctrl
+EVP_F_S390X_AES_GCM_TLS_CIPHER:208:s390x_aes_gcm_tls_cipher
 EVP_F_UPDATE:173:update
 KDF_F_PKEY_HKDF_CTRL_STR:103:pkey_hkdf_ctrl_str
 KDF_F_PKEY_HKDF_DERIVE:102:pkey_hkdf_derive
@@ -1080,12 +1082,15 @@ RSA_F_RSA_VERIFY:119:RSA_verify
 RSA_F_RSA_VERIFY_ASN1_OCTET_STRING:120:RSA_verify_ASN1_OCTET_STRING
 RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1:126:RSA_verify_PKCS1_PSS_mgf1
 RSA_F_SETUP_TBUF:167:setup_tbuf
+SM2_F_PKEY_SM2_COPY:115:pkey_sm2_copy
 SM2_F_PKEY_SM2_CTRL:109:pkey_sm2_ctrl
 SM2_F_PKEY_SM2_CTRL_STR:110:pkey_sm2_ctrl_str
+SM2_F_PKEY_SM2_DIGEST_CUSTOM:114:pkey_sm2_digest_custom
 SM2_F_PKEY_SM2_INIT:111:pkey_sm2_init
 SM2_F_PKEY_SM2_SIGN:112:pkey_sm2_sign
 SM2_F_SM2_COMPUTE_MSG_HASH:100:sm2_compute_msg_hash
 SM2_F_SM2_COMPUTE_USERID_DIGEST:101:sm2_compute_userid_digest
+SM2_F_SM2_COMPUTE_Z_DIGEST:113:sm2_compute_z_digest
 SM2_F_SM2_DECRYPT:102:sm2_decrypt
 SM2_F_SM2_ENCRYPT:103:sm2_encrypt
 SM2_F_SM2_PLAINTEXT_SIZE:104:sm2_plaintext_size
@@ -2262,6 +2267,7 @@ EVP_R_PKEY_APPLICATION_ASN1_METHOD_ALREADY_REGISTERED:179:\
 EVP_R_PRIVATE_KEY_DECODE_ERROR:145:private key decode error
 EVP_R_PRIVATE_KEY_ENCODE_ERROR:146:private key encode error
 EVP_R_PUBLIC_KEY_NOT_RSA:106:public key not rsa
+EVP_R_TOO_MANY_RECORDS:183:too many records
 EVP_R_UNKNOWN_CIPHER:160:unknown cipher
 EVP_R_UNKNOWN_DIGEST:161:unknown digest
 EVP_R_UNKNOWN_OPTION:169:unknown option
@@ -2554,6 +2560,9 @@ RSA_R_WRONG_SIGNATURE_LENGTH:119:wrong signature length
 SM2_R_ASN1_ERROR:100:asn1 error
 SM2_R_BAD_SIGNATURE:101:bad signature
 SM2_R_BUFFER_TOO_SMALL:107:buffer too small
+SM2_R_DIST_ID_TOO_LARGE:110:dist id too large
+SM2_R_ID_NOT_SET:112:id not set
+SM2_R_ID_TOO_LARGE:111:id too large
 SM2_R_INVALID_CURVE:108:invalid curve
 SM2_R_INVALID_DIGEST:102:invalid digest
 SM2_R_INVALID_DIGEST_TYPE:103:invalid digest type

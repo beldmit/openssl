@@ -2600,18 +2600,14 @@ const char *SSL_get_servername(const SSL *s, const int type)
         return NULL;
 
     /*
-     * TODO(OpenSSL1.2) clean up this compat mess.  This API is
-     * currently a mix of "what did I configure" and "what did the
-     * peer send" and "what was actually negotiated"; we should have
-     * a clear distinction amongst those three.
+     * SNI is not negotiated in pre-TLS-1.3 resumption flows, so fake up an
+     * SNI value to return if we are resuming/resumed.  N.B. that we still
+     * call the relevant callbacks for such resumption flows, and callbacks
+     * might error out if there is not a SNI value available.
      */
-    if (SSL_in_init(s)) {
-        if (s->hit)
-            return s->session->ext.hostname;
-        return s->ext.hostname;
-    }
-    return (s->session != NULL && s->ext.hostname == NULL) ?
-        s->session->ext.hostname : s->ext.hostname;
+    if (s->hit)
+        return s->session->ext.hostname;
+    return s->ext.hostname;
 }
 
 int SSL_get_servername_type(const SSL *s)
@@ -3562,12 +3558,6 @@ int SSL_do_handshake(SSL *s)
     ossl_statem_check_finish_init(s, -1);
 
     s->method->ssl_renegotiate_check(s, 0);
-
-    if (SSL_is_server(s)) {
-        /* clear SNI settings at server-side */
-        OPENSSL_free(s->ext.hostname);
-        s->ext.hostname = NULL;
-    }
 
     if (SSL_in_init(s) || SSL_in_before(s)) {
         if ((s->mode & SSL_MODE_ASYNC) && ASYNC_get_current_job() == NULL) {

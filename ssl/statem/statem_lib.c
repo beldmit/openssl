@@ -638,9 +638,12 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
     /*
      * If we get a request for us to update our sending keys too then, we need
      * to additionally send a KeyUpdate message. However that message should
-     * not also request an update (otherwise we get into an infinite loop).
+     * not also request an update (otherwise we get into an infinite loop). We
+     * ignore a request for us to update our sending keys too if we already
+     * sent close_notify.
      */
-    if (updatetype == SSL_KEY_UPDATE_REQUESTED)
+    if (updatetype == SSL_KEY_UPDATE_REQUESTED
+            && (s->shutdown & SSL_SENT_SHUTDOWN) == 0)
         s->key_update = SSL_KEY_UPDATE_NOT_REQUESTED;
 
     if (!tls13_update_key(s, 0)) {
@@ -1486,7 +1489,8 @@ static int ssl_method_error(const SSL *s, const SSL_METHOD *method)
 
 /*
  * Only called by servers. Returns 1 if the server has a TLSv1.3 capable
- * certificate type, or has PSK configured. Otherwise returns 0.
+ * certificate type, or has PSK or a certificate callback configured. Otherwise
+ * returns 0.
  */
 static int is_tls13_capable(const SSL *s)
 {
@@ -1497,7 +1501,7 @@ static int is_tls13_capable(const SSL *s)
         return 1;
 #endif
 
-    if (s->psk_find_session_cb != NULL)
+    if (s->psk_find_session_cb != NULL || s->cert->cert_cb != NULL)
         return 1;
 
     for (i = 0; i < SSL_PKEY_NUM; i++) {
