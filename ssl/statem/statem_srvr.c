@@ -3428,7 +3428,7 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
     unsigned char premaster_secret[32];
     const unsigned char *start = NULL;
     size_t outlen = 32, inlen = 0;
-    unsigned int asn1id, asn1len;
+    /* unsigned int asn1id, asn1len; */
     int ret = 0;
     PACKET encdata;
     int cipher_nid = NID_undef;
@@ -3490,7 +3490,7 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
                  SSL_R_LIBRARY_BUG);
         goto err;
     }
-
+#if 0
     /* Decrypt session key
     if (!PACKET_get_1(pkt, &asn1id)
             || asn1id != (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
@@ -3519,7 +3519,7 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
                  SSL_R_DECRYPTION_FAILED);
         goto err;
     } /* else short form length */
-
+#endif
     if (!PACKET_as_length_prefixed_1(pkt, &encdata)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
                  SSL_R_DECRYPTION_FAILED);

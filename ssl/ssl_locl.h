@@ -311,7 +311,7 @@
  * TLSTREE cipher/mac key derivation from draft-smyshlyaev-tls12-gost-suites
  * (currently this also  goes into algorithm2)
  */
-# define TLS1_TLSTREE_MAC 0x20000
+# define TLS1_TLSTREE 0x20000
 
 # define SSL_STRONG_MASK         0x0000001FU
 # define SSL_DEFAULT_MASK        0X00000020U
