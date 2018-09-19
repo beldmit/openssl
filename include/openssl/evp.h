@@ -139,6 +139,7 @@ int (*EVP_MD_meth_get_ctrl(const EVP_MD *md))(EVP_MD_CTX *ctx, int cmd,
 #  define EVP_MD_CTRL_DIGALGID                    0x1
 #  define EVP_MD_CTRL_MICALG                      0x2
 #  define EVP_MD_CTRL_XOF_LEN                     0x3
+#  define EVP_MD_CTRL_TLSTREE                     0x4
 
 /* Minimum Algorithm specific ctrl value */
 
@@ -348,6 +349,8 @@ int (*EVP_CIPHER_meth_get_ctrl(const EVP_CIPHER *cipher))(EVP_CIPHER_CTX *,
 # define         EVP_CTRL_SET_PIPELINE_INPUT_BUFS        0x23
 /* Set the input buffer lengths to use for a pipelined operation */
 # define         EVP_CTRL_SET_PIPELINE_INPUT_LENS        0x24
+/* Indicates TLSTREE key diversification during TLS processing */
+# define         EVP_CTRL_TLS1_2_TLSTREE                 0x25
 
 /* Padding modes */
 #define EVP_PADDING_PKCS7       1
