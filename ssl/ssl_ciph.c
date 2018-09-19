@@ -115,8 +115,8 @@ static const ssl_cipher_table ssl_cipher_table_mac[SSL_MD_NUM_IDX] = {
     {0, NID_md5_sha1},          /* SSL_MD_MD5_SHA1_IDX 9 */
     {0, NID_sha224},            /* SSL_MD_SHA224_IDX 10 */
     {0, NID_sha512},            /* SSL_MD_SHA512_IDX 11 */
-    {SSL_MAGMAOMAC, NID_id_tc26_cipher_gostr3412_2015_magma_ctracpkm_omac}, /* SSL_MD_MAGMAOMAC_IDX */
-    {SSL_KUZNYECHIKOMAC, NID_id_tc26_cipher_gostr3412_2015_kuznyechik_ctracpkm_omac}, /* SSL_MD_KUZNYECHIKOMAC_IDX */
+    {SSL_MAGMAOMAC, NID_magma_mac}, /* SSL_MD_MAGMAOMAC_IDX */
+    {SSL_KUZNYECHIKOMAC, NID_grasshopper_mac}, /* SSL_MD_KUZNYECHIKOMAC_IDX */
 };
 
 static const EVP_MD *ssl_digest_methods[SSL_MD_NUM_IDX] = {
@@ -439,14 +439,14 @@ int ssl_load_ciphers(void)
         disabled_mac_mask |= SSL_GOST89MAC12;
 
     ssl_mac_pkey_id[SSL_MD_MAGMAOMAC_IDX] =
-        get_optional_pkey_id("id-tc26-cipher-gostr3412-2015-magma-ctracpkm-omac");
+        get_optional_pkey_id("magma-mac");
     if (ssl_mac_pkey_id[SSL_MD_MAGMAOMAC_IDX])
         ssl_mac_secret_size[SSL_MD_MAGMAOMAC_IDX] = 32;
     else
         disabled_mac_mask |= SSL_MAGMAOMAC;
 
     ssl_mac_pkey_id[SSL_MD_KUZNYECHIKOMAC_IDX] =
-        get_optional_pkey_id("id-tc26-cipher-gostr3412-2015-kuznyechik-ctracpkm-omac");
+        get_optional_pkey_id("grasshopper-mac");
     if (ssl_mac_pkey_id[SSL_MD_KUZNYECHIKOMAC_IDX])
         ssl_mac_secret_size[SSL_MD_KUZNYECHIKOMAC_IDX] = 32;
     else
