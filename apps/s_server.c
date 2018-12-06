@@ -3,7 +3,7 @@
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -193,9 +193,8 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
 
     if (strlen(psk_identity) != identity_len
             || memcmp(psk_identity, identity, identity_len) != 0) {
-        BIO_printf(bio_s_out,
-                   "PSK warning: client identity not what we expected"
-                   " (got '%s' expected '%s')\n", identity, psk_identity);
+        *sess = NULL;
+        return 1;
     }
 
     if (psksess != NULL) {
@@ -1622,6 +1621,11 @@ int s_server_main(int argc, char *argv[])
         goto end;
     }
 #endif
+    if (early_data && (www > 0 || rev)) {
+        BIO_printf(bio_err,
+                   "Can't use -early_data in combination with -www, -WWW, -HTTP, or -rev\n");
+        goto end;
+    }
 
 #ifndef OPENSSL_NO_SCTP
     if (protocol == IPPROTO_SCTP) {
@@ -2750,6 +2754,8 @@ static int init_ssl_connection(SSL *con)
                     BIO_ADDR_free(client);
                     return 0;
                 }
+
+                (void)BIO_ctrl_set_connected(wbio, client);
                 BIO_ADDR_free(client);
                 dtlslisten = 0;
             } else {

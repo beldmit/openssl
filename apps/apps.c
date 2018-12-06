@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -1829,6 +1829,12 @@ X509_NAME *parse_name(const char *cp, long chtype, int canmulti)
         if (nid == NID_undef) {
             BIO_printf(bio_err, "%s: Skipping unknown attribute \"%s\"\n",
                       opt_getprog(), typestr);
+            continue;
+        }
+        if (*valstr == '\0') {
+            BIO_printf(bio_err,
+                       "%s: No value provided for Subject Attribute %s, skipped\n",
+                       opt_getprog(), typestr);
             continue;
         }
         if (!X509_NAME_add_entry_by_NID(n, nid, chtype,

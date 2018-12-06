@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -18,8 +18,6 @@
 
 /* Functions/macros provided by the RECORD_LAYER component */
 
-#define RECORD_LAYER_get_rbuf(rl)               (&(rl)->rbuf)
-#define RECORD_LAYER_get_wbuf(rl)               ((rl)->wbuf)
 #define RECORD_LAYER_get_rrec(rl)               ((rl)->rrec)
 #define RECORD_LAYER_set_packet(rl, p)          ((rl)->packet = (p))
 #define RECORD_LAYER_reset_packet_length(rl)    ((rl)->packet_length = 0)

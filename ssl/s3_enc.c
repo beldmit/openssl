@@ -2,7 +2,7 @@
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -442,15 +442,16 @@ size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
     if (!EVP_MD_CTX_copy_ex(ctx, s->s3->handshake_dgst)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_SSL3_FINAL_FINISH_MAC,
                  ERR_R_INTERNAL_ERROR);
-        return 0;
+        ret = 0;
+        goto err;
     }
 
     ret = EVP_MD_CTX_size(ctx);
     if (ret < 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_SSL3_FINAL_FINISH_MAC,
                  ERR_R_INTERNAL_ERROR);
-        EVP_MD_CTX_reset(ctx);
-        return 0;
+        ret = 0;
+        goto err;
     }
 
     if ((sender != NULL && EVP_DigestUpdate(ctx, sender, len) <= 0)
@@ -463,6 +464,7 @@ size_t ssl3_final_finish_mac(SSL *s, const char *sender, size_t len,
         ret = 0;
     }
 
+ err:
     EVP_MD_CTX_free(ctx);
 
     return ret;

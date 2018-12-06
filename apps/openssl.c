@@ -1,7 +1,7 @@
 /*
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -297,6 +297,20 @@ static void list_md_fn(const EVP_MD *m,
     }
 }
 
+static void list_mac_fn(const EVP_MAC *m,
+                        const char *from, const char *to, void *arg)
+{
+    if (m != NULL) {
+        BIO_printf(arg, "%s\n", EVP_MAC_name(m));
+    } else {
+        if (from == NULL)
+            from = "<undefined>";
+        if (to == NULL)
+            to = "<undefined>";
+        BIO_printf(arg, "%s => %s\n", from, to);
+    }
+}
+
 static void list_missing_help(void)
 {
     const FUNCTION *fp;
@@ -314,6 +328,56 @@ static void list_missing_help(void)
             BIO_printf(bio_out, "%s *\n", fp->name);
         }
     }
+}
+
+static void list_objects(void)
+{
+    int max_nid = OBJ_new_nid(0);
+    int i;
+    char *oid_buf = NULL;
+    int oid_size = 0;
+
+    /* Skip 0, since that's NID_undef */
+    for (i = 1; i < max_nid; i++) {
+        const ASN1_OBJECT *obj = OBJ_nid2obj(i);
+        const char *sn = OBJ_nid2sn(i);
+        const char *ln = OBJ_nid2ln(i);
+        int n = 0;
+
+        /*
+         * If one of the retrieved objects somehow generated an error,
+         * we ignore it.  The check for NID_undef below will detect the
+         * error and simply skip to the next NID.
+         */
+        ERR_clear_error();
+
+        if (OBJ_obj2nid(obj) == NID_undef)
+            continue;
+
+        if ((n = OBJ_obj2txt(NULL, 0, obj, 1)) == 0) {
+            BIO_printf(bio_out, "# None-OID object: %s, %s\n", sn, ln);
+            continue;
+        }
+        if (n < 0)
+            break;               /* Error */
+
+        if (n > oid_size) {
+            oid_buf = OPENSSL_realloc(oid_buf, n + 1);
+            if (oid_buf == NULL) {
+                BIO_printf(bio_err, "ERROR: Memory allocation\n");
+                break;           /* Error */
+            }
+            oid_size = n + 1;
+        }
+        if (OBJ_obj2txt(oid_buf, oid_size, obj, 1) < 0)
+            break;               /* Error */
+        if (ln == NULL || strcmp(sn, ln) == 0)
+            BIO_printf(bio_out, "%s = %s\n", sn, oid_buf);
+        else
+            BIO_printf(bio_out, "%s = %s, %s\n", sn, ln, oid_buf);
+    }
+
+    OPENSSL_free(oid_buf);
 }
 
 static void list_options_for_command(const char *command)
@@ -346,9 +410,10 @@ static void list_options_for_command(const char *command)
 /* Unified enum for help and list commands. */
 typedef enum HELPLIST_CHOICE {
     OPT_ERR = -1, OPT_EOF = 0, OPT_HELP, OPT_ONE,
-    OPT_COMMANDS, OPT_DIGEST_COMMANDS, OPT_OPTIONS,
+    OPT_COMMANDS, OPT_DIGEST_COMMANDS, OPT_MAC_ALGORITHMS, OPT_OPTIONS,
     OPT_DIGEST_ALGORITHMS, OPT_CIPHER_COMMANDS, OPT_CIPHER_ALGORITHMS,
-    OPT_PK_ALGORITHMS, OPT_PK_METHOD, OPT_DISABLED, OPT_MISSING_HELP
+    OPT_PK_ALGORITHMS, OPT_PK_METHOD, OPT_DISABLED, OPT_MISSING_HELP,
+    OPT_OBJECTS
 } HELPLIST_CHOICE;
 
 const OPTIONS list_options[] = {
@@ -359,6 +424,8 @@ const OPTIONS list_options[] = {
      "List of message digest commands"},
     {"digest-algorithms", OPT_DIGEST_ALGORITHMS, '-',
      "List of message digest algorithms"},
+    {"mac-algorithms", OPT_MAC_ALGORITHMS, '-',
+     "List of message authentication code algorithms"},
     {"cipher-commands", OPT_CIPHER_COMMANDS, '-', "List of cipher commands"},
     {"cipher-algorithms", OPT_CIPHER_ALGORITHMS, '-',
      "List of cipher algorithms"},
@@ -372,6 +439,8 @@ const OPTIONS list_options[] = {
      "List missing detailed help strings"},
     {"options", OPT_OPTIONS, 's',
      "List options for specified command"},
+    {"objects", OPT_OBJECTS, '-',
+     "List built in objects (OID<->name mappings)"},
     {NULL}
 };
 
@@ -404,6 +473,9 @@ opthelp:
         case OPT_DIGEST_ALGORITHMS:
             EVP_MD_do_all_sorted(list_md_fn, bio_out);
             break;
+        case OPT_MAC_ALGORITHMS:
+            EVP_MAC_do_all_sorted(list_mac_fn, bio_out);
+            break;
         case OPT_CIPHER_COMMANDS:
             list_type(FT_cipher, one);
             break;
@@ -421,6 +493,9 @@ opthelp:
             break;
         case OPT_MISSING_HELP:
             list_missing_help();
+            break;
+        case OPT_OBJECTS:
+            list_objects();
             break;
         case OPT_OPTIONS:
             list_options_for_command(opt_arg());

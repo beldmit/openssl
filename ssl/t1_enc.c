@@ -2,7 +2,7 @@
  * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -136,8 +136,11 @@ int tls1_change_cipher_state(SSL *s, int which)
         }
         dd = s->enc_read_ctx;
         mac_ctx = ssl_replace_hash(&s->read_hash, NULL);
-        if (mac_ctx == NULL)
+        if (mac_ctx == NULL) {
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_CHANGE_CIPHER_STATE,
+                     ERR_R_INTERNAL_ERROR);
             goto err;
+        }
 #ifndef OPENSSL_NO_COMP
         COMP_CTX_free(s->expand);
         s->expand = NULL;
