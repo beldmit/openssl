@@ -3438,9 +3438,7 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
     unsigned char premaster_secret[32];
     const unsigned char *start = NULL;
     size_t outlen = 32, inlen = 0;
-    /* unsigned int asn1id, asn1len; */
     int ret = 0;
-    PACKET encdata;
     int cipher_nid = NID_undef;
 
     if ((s->s3->tmp.new_cipher->algorithm_enc & SSL_MAGMA) != 0)
@@ -3468,9 +3466,12 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
     hash = NULL;
 
     /* Get our certificate private key */
-		pk = s->cert->pkeys[SSL_PKEY_GOST12_512].privatekey;
+    pk = s->cert->pkeys[SSL_PKEY_GOST12_512].privatekey
+      ? s->cert->pkeys[SSL_PKEY_GOST12_512].privatekey : s->cert->pkeys[SSL_PKEY_GOST12_256].privatekey;
     if (pk == NULL) {
-      pk = s->cert->pkeys[SSL_PKEY_GOST12_256].privatekey;
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
+                 SSL_R_BAD_HANDSHAKE_STATE);
+        return 0;
     }
 
     pkey_ctx = EVP_PKEY_CTX_new(pk, NULL);
@@ -3501,42 +3502,15 @@ static int tls_process_cke_gost18(SSL *s, PACKET *pkt)
         goto err;
     }
 #if 0
-    /* Decrypt session key
-    if (!PACKET_get_1(pkt, &asn1id)
-            || asn1id != (V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
-            || !PACKET_peek_1(pkt, &asn1len)) {
-        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
-                 SSL_R_DECRYPTION_FAILED);
-        goto err;
-    }*/
-    if (asn1len == 0x81) {
-        /*
-         * Long form length. Should only be one byte of length. Anything else
-         * isn't supported.
-         * We did a successful peek before so this shouldn't fail
-         */
-        if (!PACKET_forward(pkt, 1)) {
-            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
-                     SSL_R_DECRYPTION_FAILED);
-            goto err;
-        }
-    } else  if (asn1len >= 0x80) {
-        /*
-         * Indefinite length, or more than one long form length bytes. We don't
-         * support it
-         */
-        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
-                 SSL_R_DECRYPTION_FAILED);
-        goto err;
-    } /* else short form length */
+{
+	FILE * f;
+	f= fopen("shit","w+");
+	fwrite(PACKET_data(pkt), 1, PACKET_remaining(pkt), f);
+	fclose(f);
+}
 #endif
-    if (!PACKET_as_length_prefixed_1(pkt, &encdata)) {
-        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CKE_GOST,
-                 SSL_R_DECRYPTION_FAILED);
-        goto err;
-    }
-    inlen = PACKET_remaining(&encdata);
-    start = PACKET_data(&encdata);
+    inlen = PACKET_remaining(pkt);
+    start = PACKET_data(pkt);
 
     if (EVP_PKEY_decrypt(pkey_ctx, premaster_secret, &outlen, start,
                          inlen) <= 0) {

@@ -3390,15 +3390,7 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
         goto err;
     }
 
-/*    if (!WPACKET_put_bytes_u8(pkt, V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED)
-            || (msglen >= 0x80 && !WPACKET_put_bytes_u8(pkt, 0x81))
-            || !WPACKET_sub_memcpy_u8(pkt, tmp, msglen)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
-                 ERR_R_INTERNAL_ERROR);
-        goto err;
-    }*/
-
-    if (!WPACKET_sub_memcpy_u8(pkt, tmp, msglen)) {
+    if (!WPACKET_memcpy(pkt, tmp, msglen)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
                  ERR_R_INTERNAL_ERROR);
         goto err;
