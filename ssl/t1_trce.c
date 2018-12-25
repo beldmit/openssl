@@ -1122,9 +1122,13 @@ static int ssl_print_client_keyex(BIO *bio, int indent, const SSL *ssl,
         break;
 #ifndef OPENSSL_NO_GOST
     case SSL_kGOST:
-    case SSL_kGOST18:
         if (!ssl_print_hexbuf(bio, indent + 2, "GOST-wrapped PreMasterSecret", 1, &msg, &msglen))
             return 0;
+        break;
+    case SSL_kGOST18:
+            ssl_print_hex(bio, indent + 2,
+                                "GOST-wrapped PreMasterSecret", msg, msglen);
+                return 0;
         break;
 #endif
     }
