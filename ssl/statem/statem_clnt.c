@@ -3311,6 +3311,7 @@ static int tls_construct_cke_gost18(SSL *s, WPACKET *pkt)
     else {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_CKE_GOST,
                  ERR_R_INTERNAL_ERROR);
+        return 0;
     }
 
     hash = EVP_MD_CTX_new();
