@@ -240,6 +240,11 @@ int tls1_change_cipher_state(SSL *s, int which)
         k = EVP_GCM_TLS_FIXED_IV_LEN;
     else if (EVP_CIPHER_mode(c) == EVP_CIPH_CCM_MODE)
         k = EVP_CCM_TLS_FIXED_IV_LEN;
+#ifndef OPENSSL_NO_GOST
+    /* Here we init the 2nd half of iv by zeroes */
+    else if (EVP_CIPHER_nid(c) == NID_id_tc26_cipher_gostr3412_2015_kuznyechik_ctracpkm)
+        k = EVP_CIPHER_iv_length(c)/2;
+#endif
     else
         k = EVP_CIPHER_iv_length(c);
     if ((which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
@@ -315,11 +320,25 @@ int tls1_change_cipher_state(SSL *s, int which)
             goto err;
         }
     } else {
-        if (!EVP_CipherInit_ex(dd, c, NULL, key, iv, (which & SSL3_CC_WRITE))) {
-            SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_CHANGE_CIPHER_STATE,
-                     ERR_R_INTERNAL_ERROR);
-            goto err;
+      /* Here we init the 2nd half of iv by zeroes FIXME beldmit */
+      if (EVP_CIPHER_nid(c) == NID_id_tc26_cipher_gostr3412_2015_kuznyechik_ctracpkm)
+      {
+        unsigned char real_iv[16];
+        memset(real_iv, 0, sizeof(real_iv));
+        memcpy(real_iv, iv, EVP_CIPHER_iv_length(c)/2);
+        if (!EVP_CipherInit_ex(dd, c, NULL, key, real_iv, (which & SSL3_CC_WRITE))) {
+          OPENSSL_cleanse(real_iv, sizeof(real_iv));
+          SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_CHANGE_CIPHER_STATE,
+              ERR_R_INTERNAL_ERROR);
+          goto err;
         }
+        OPENSSL_cleanse(real_iv, sizeof(real_iv));
+      }
+      else if (!EVP_CipherInit_ex(dd, c, NULL, key, iv, (which & SSL3_CC_WRITE))) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_CHANGE_CIPHER_STATE,
+            ERR_R_INTERNAL_ERROR);
+        goto err;
+      }
     }
     /* Needed for "composite" AEADs, such as RC4-HMAC-MD5 */
     if ((EVP_CIPHER_flags(c) & EVP_CIPH_FLAG_AEAD_CIPHER) && *mac_secret_size
@@ -346,7 +365,6 @@ int tls1_change_cipher_state(SSL *s, int which)
     }
     printf("\n");
 #endif
-
     OPENSSL_cleanse(tmp1, sizeof(tmp1));
     OPENSSL_cleanse(tmp2, sizeof(tmp1));
     OPENSSL_cleanse(iv1, sizeof(iv1));
