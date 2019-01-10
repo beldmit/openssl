@@ -881,6 +881,24 @@ static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL *s, int idx)
                     }
                 }
             }
+            /*
+             * Here is another fallback: when broken implementations did not sent
+             * proper signature_algorithm extension, we try to use this function.
+             *
+             * As both SSL_PKEY_GOST12_512 and SSL_PKEY_GOST12_256 indices can be used
+             * with new (aGOST12-only) ciphersuites, we should find out which one is available really.
+             * */
+            else if (idx == SSL_PKEY_GOST12_256) {
+                int real_idx;
+
+                for (real_idx = SSL_PKEY_GOST12_512; real_idx >= SSL_PKEY_GOST12_256;
+                     real_idx--) {
+                    if (s->cert->pkeys[real_idx].privatekey != NULL) {
+                        idx = real_idx;
+                        break;
+                    }
+                }
+            }
         } else {
             idx = s->cert->key - s->cert->pkeys;
         }
@@ -2708,6 +2726,26 @@ int tls_choose_sigalg(SSL *s, int fatalerrs)
 #endif
                         break;
                 }
+#ifndef OPENSSL_NO_GOST
+                /*
+                 * Some Windows-based implementations do not send GOST algorithms indication
+                 * in supported_algorithms extension, so when we have GOST-based ciphersuite,
+                 * we have to assume GOST support.
+                 */
+                if (i == s->cert->shared_sigalgslen && s->s3->tmp.new_cipher->algorithm_auth & (SSL_aGOST01 | SSL_aGOST12)) {
+                  if ((lu = tls1_get_legacy_sigalg(s, -1)) == NULL) {
+                    if (!fatalerrs)
+                      return 1;
+                    SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
+                             SSL_F_TLS_CHOOSE_SIGALG,
+                             SSL_R_NO_SUITABLE_SIGNATURE_ALGORITHM);
+                    return 0;
+                  } else {
+                    i = 0;
+                    sig_idx = lu->sig_idx;
+                  }
+                }
+#endif
                 if (i == s->cert->shared_sigalgslen) {
                     if (!fatalerrs)
                         return 1;
