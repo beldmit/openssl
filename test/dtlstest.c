@@ -63,7 +63,7 @@ static int test_dtls_unprocessed(int testidx)
 
     if (!TEST_true(create_ssl_ctx_pair(DTLS_server_method(),
                                        DTLS_client_method(),
-                                       DTLS1_VERSION, DTLS_MAX_VERSION,
+                                       DTLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
@@ -87,17 +87,21 @@ static int test_dtls_unprocessed(int testidx)
     /*
      * Inject a dummy record from the next epoch. In test 0, this should never
      * get used because the message sequence number is too big. In test 1 we set
-     * the record sequence number to be way off in the future. This should not
-     * have an impact on the record replay protection because the record should
-     * be dropped before it is marked as arrived
+     * the record sequence number to be way off in the future.
      */
     c_to_s_mempacket = SSL_get_wbio(clientssl1);
     c_to_s_mempacket = BIO_next(c_to_s_mempacket);
     mempacket_test_inject(c_to_s_mempacket, (char *)certstatus,
                           sizeof(certstatus), 1, INJECT_PACKET_IGNORE_REC_SEQ);
 
-    if (!TEST_true(create_ssl_connection(serverssl1, clientssl1,
-                                         SSL_ERROR_NONE)))
+    /*
+     * Create the connection. We use "create_bare_ssl_connection" here so that
+     * we can force the connection to not do "SSL_read" once partly conencted.
+     * We don't want to accidentally read the dummy records we injected because
+     * they will fail to decrypt.
+     */
+    if (!TEST_true(create_bare_ssl_connection(serverssl1, clientssl1,
+                                              SSL_ERROR_NONE, 0)))
         goto end;
 
     if (timer_cb_count == 0) {
@@ -154,7 +158,7 @@ static int test_dtls_drop_records(int idx)
 
     if (!TEST_true(create_ssl_ctx_pair(DTLS_server_method(),
                                        DTLS_client_method(),
-                                       DTLS1_VERSION, DTLS_MAX_VERSION,
+                                       DTLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
@@ -265,7 +269,7 @@ static int test_cookie(void)
 
     if (!TEST_true(create_ssl_ctx_pair(DTLS_server_method(),
                                        DTLS_client_method(),
-                                       DTLS1_VERSION, DTLS_MAX_VERSION,
+                                       DTLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
@@ -297,7 +301,7 @@ static int test_dtls_duplicate_records(void)
 
     if (!TEST_true(create_ssl_ctx_pair(DTLS_server_method(),
                                        DTLS_client_method(),
-                                       DTLS1_VERSION, DTLS_MAX_VERSION,
+                                       DTLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey)))
         return 0;
 
@@ -323,6 +327,8 @@ static int test_dtls_duplicate_records(void)
 
     return testresult;
 }
+
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
 
 int setup_tests(void)
 {

@@ -213,6 +213,7 @@ DEFINE_COMPARISONS(unsigned char, uchar, "%u")
 DEFINE_COMPARISONS(long, long, "%ld")
 DEFINE_COMPARISONS(unsigned long, ulong, "%lu")
 DEFINE_COMPARISONS(size_t, size_t, "%zu")
+DEFINE_COMPARISONS(double, double, "%g")
 
 DEFINE_COMPARISON(void *, ptr, eq, ==, "%p")
 DEFINE_COMPARISON(void *, ptr, ne, !=, "%p")
@@ -420,7 +421,7 @@ int test_BN_abs_eq_word(const char *file, int line, const char *bns,
 
 static const char *print_time(const ASN1_TIME *t)
 {
-    return t == NULL ? "<null>" : (char *)ASN1_STRING_get0_data(t);
+    return t == NULL ? "<null>" : (const char *)ASN1_STRING_get0_data(t);
 }
 
 #define DEFINE_TIME_T_COMPARISON(opname, op)                            \

@@ -35,9 +35,15 @@ static int get_sni_from_client_hello(BIO *bio, char **sni)
 {
     long len;
     unsigned char *data;
-    PACKET pkt = {0}, pkt2 = {0}, pkt3 = {0}, pkt4 = {0}, pkt5 = {0};
+    PACKET pkt, pkt2, pkt3, pkt4, pkt5;
     unsigned int servname_type = 0, type = 0;
     int ret = 0;
+
+    memset(&pkt, 0, sizeof(pkt));
+    memset(&pkt2, 0, sizeof(pkt2));
+    memset(&pkt3, 0, sizeof(pkt3));
+    memset(&pkt4, 0, sizeof(pkt4));
+    memset(&pkt5, 0, sizeof(pkt5));
 
     len = BIO_get_mem_data(bio, (char **)&data);
     if (!TEST_true(PACKET_buf_init(&pkt, data, len))
@@ -186,7 +192,7 @@ static int server_setup_sni(void)
 
     if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
                                        TLS_client_method(),
-                                       TLS1_VERSION, TLS_MAX_VERSION,
+                                       TLS1_VERSION, 0,
                                        &sctx, &cctx, cert, privkey))
             || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
                                              NULL, NULL)))
@@ -203,7 +209,7 @@ static int server_setup_sni(void)
         /* SNI should have been cleared during handshake */
         goto end;
     }
-    
+
     testresult = 1;
 end:
     SSL_free(serverssl);

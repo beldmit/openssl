@@ -1331,8 +1331,8 @@ int main(int argc, char *argv[])
         min_version = TLS1_2_VERSION;
         max_version = TLS1_2_VERSION;
     } else {
-        min_version = SSL3_VERSION;
-        max_version = TLS_MAX_VERSION;
+        min_version = 0;
+        max_version = 0;
     }
 #endif
 #ifndef OPENSSL_NO_DTLS
@@ -1345,8 +1345,8 @@ int main(int argc, char *argv[])
             min_version = DTLS1_2_VERSION;
             max_version = DTLS1_2_VERSION;
         } else {
-            min_version = DTLS_MIN_VERSION;
-            max_version = DTLS_MAX_VERSION;
+            min_version = 0;
+            max_version = 0;
         }
     }
 #endif
@@ -1382,11 +1382,52 @@ int main(int argc, char *argv[])
         goto end;
 
     if (cipher != NULL) {
-        if (!SSL_CTX_set_cipher_list(c_ctx, cipher)
-            || !SSL_CTX_set_cipher_list(s_ctx, cipher)
-            || !SSL_CTX_set_cipher_list(s_ctx2, cipher)) {
-            ERR_print_errors(bio_err);
-            goto end;
+        if (strcmp(cipher, "") == 0) {
+            if (!SSL_CTX_set_cipher_list(c_ctx, cipher)) {
+                if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_NO_CIPHER_MATCH) {
+                    ERR_clear_error();
+                } else {
+                    ERR_print_errors(bio_err);
+                    goto end;
+                }
+            } else {
+                /* Should have failed when clearing all TLSv1.2 ciphers. */
+                fprintf(stderr, "CLEARING ALL TLSv1.2 CIPHERS SHOULD FAIL\n");
+                goto end;
+            }
+
+            if (!SSL_CTX_set_cipher_list(s_ctx, cipher)) {
+                if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_NO_CIPHER_MATCH) {
+                    ERR_clear_error();
+                } else {
+                    ERR_print_errors(bio_err);
+                    goto end;
+                }
+            } else {
+                /* Should have failed when clearing all TLSv1.2 ciphers. */
+                fprintf(stderr, "CLEARING ALL TLSv1.2 CIPHERS SHOULD FAIL\n");
+                goto end;
+            }
+
+            if (!SSL_CTX_set_cipher_list(s_ctx2, cipher)) {
+                if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_NO_CIPHER_MATCH) {
+                    ERR_clear_error();
+                } else {
+                    ERR_print_errors(bio_err);
+                    goto end;
+                }
+            } else {
+                /* Should have failed when clearing all TLSv1.2 ciphers. */
+                fprintf(stderr, "CLEARING ALL TLSv1.2 CIPHERS SHOULD FAIL\n");
+                goto end;
+            }
+        } else {
+            if (!SSL_CTX_set_cipher_list(c_ctx, cipher)
+                    || !SSL_CTX_set_cipher_list(s_ctx, cipher)
+                    || !SSL_CTX_set_cipher_list(s_ctx2, cipher)) {
+                ERR_print_errors(bio_err);
+                goto end;
+            }
         }
     }
     if (ciphersuites != NULL) {

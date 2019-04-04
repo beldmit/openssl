@@ -683,6 +683,12 @@ int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
         hints.ai_family = family;
         hints.ai_socktype = socktype;
         hints.ai_protocol = protocol;
+#ifdef AI_ADDRCONFIG
+#ifdef AF_UNSPEC
+        if (family == AF_UNSPEC)
+#endif
+            hints.ai_flags |= AI_ADDRCONFIG;
+#endif
 
         if (lookup_type == BIO_LOOKUP_SERVER)
             hints.ai_flags |= AI_PASSIVE;
@@ -782,7 +788,12 @@ int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
                  * anyway [above getaddrinfo/gai_strerror is]. We just let
                  * system administrator figure this out...
                  */
+# if defined(OPENSSL_SYS_VXWORKS)
+                /* h_errno doesn't exist on VxWorks */
+                SYSerr(SYS_F_GETHOSTBYNAME, 1000 );
+# else
                 SYSerr(SYS_F_GETHOSTBYNAME, 1000 + h_errno);
+# endif
 #else
                 SYSerr(SYS_F_GETHOSTBYNAME, WSAGetLastError());
 #endif

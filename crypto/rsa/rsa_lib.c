@@ -181,7 +181,7 @@ static const unsigned int c1_923 = 0x07b126;    /* scale * 1.923 */
 static const unsigned int c4_690 = 0x12c28f;    /* scale * 4.690 */
 
 /*
- * Multiply two scale integers together and rescale the result.
+ * Multiply two scaled integers together and rescale the result.
  */
 static ossl_inline uint64_t mul2(uint64_t a, uint64_t b)
 {
@@ -253,7 +253,7 @@ static uint32_t ilog_e(uint64_t v)
  *           \cdot(log_e(nBits \cdot log_e(2))^{2/3} - 4.69}{log_e(2)}
  * The two cube roots are merged together here.
  */
-static uint16_t rsa_compute_security_bits(int n)
+uint16_t rsa_compute_security_bits(int n)
 {
     uint64_t x;
     uint32_t lx;

@@ -107,15 +107,11 @@ DEFINE_STACK_OF(void)
 # define CRYPTO_EX_INDEX_APP             13
 # define CRYPTO_EX_INDEX_UI_METHOD       14
 # define CRYPTO_EX_INDEX_DRBG            15
-# define CRYPTO_EX_INDEX__COUNT          16
+# define CRYPTO_EX_INDEX_OPENSSL_CTX     16
+# define CRYPTO_EX_INDEX__COUNT          17
 
-/*
- * This is the default callbacks, but we can have others as well: this is
- * needed in Win32 where the application malloc and the library malloc may
- * not be the same.
- */
-#define OPENSSL_malloc_init() \
-    CRYPTO_set_mem_functions(CRYPTO_malloc, CRYPTO_realloc, CRYPTO_free)
+/* No longer needed, so this is a no-op */
+#define OPENSSL_malloc_init() while(0) continue
 
 int CRYPTO_mem_ctrl(int mode);
 
@@ -191,6 +187,10 @@ int CRYPTO_dup_ex_data(int class_index, CRYPTO_EX_DATA *to,
                        const CRYPTO_EX_DATA *from);
 
 void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad);
+
+/* Allocate a single item in the CRYPTO_EX_DATA variable */
+int CRYPTO_alloc_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad,
+                         int idx);
 
 /*
  * Get/set data in a CRYPTO_EX_DATA variable corresponding to a particular
@@ -379,7 +379,7 @@ int CRYPTO_memcmp(const void * in_a, const void * in_b, size_t len);
 /* OPENSSL_INIT_ZLIB                         0x00010000L */
 # define OPENSSL_INIT_ATFORK                 0x00020000L
 /* OPENSSL_INIT_BASE_ONLY                    0x00040000L */
-/* FREE: 0x00080000L */
+# define OPENSSL_INIT_NO_ATEXIT              0x00080000L
 /* OPENSSL_INIT flag range 0x03f00000 reserved for OPENSSL_init_ssl() */
 # define OPENSSL_INIT_NO_ADD_ALL_MACS        0x04000000L
 # define OPENSSL_INIT_ADD_ALL_MACS           0x08000000L
@@ -405,8 +405,12 @@ void OPENSSL_thread_stop(void);
 /* Low-level control of initialization */
 OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void);
 # ifndef OPENSSL_NO_STDIO
+int OPENSSL_INIT_set_config_filename(OPENSSL_INIT_SETTINGS *settings,
+                                     const char *config_filename);
+void OPENSSL_INIT_set_config_file_flags(OPENSSL_INIT_SETTINGS *settings,
+                                        unsigned long flags);
 int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *settings,
-                                    const char *config_file);
+                                    const char *config_appname);
 # endif
 void OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS *settings);
 
@@ -447,6 +451,8 @@ int CRYPTO_THREAD_cleanup_local(CRYPTO_THREAD_LOCAL *key);
 CRYPTO_THREAD_ID CRYPTO_THREAD_get_current_id(void);
 int CRYPTO_THREAD_compare_id(CRYPTO_THREAD_ID a, CRYPTO_THREAD_ID b);
 
+OPENSSL_CTX *OPENSSL_CTX_new(void);
+void OPENSSL_CTX_free(OPENSSL_CTX *);
 
 # ifdef  __cplusplus
 }

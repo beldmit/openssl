@@ -48,7 +48,7 @@ void EVP_MAC_CTX_free(EVP_MAC_CTX *ctx)
     OPENSSL_free(ctx);
 }
 
-int EVP_MAC_CTX_copy(EVP_MAC_CTX *dst, EVP_MAC_CTX *src)
+int EVP_MAC_CTX_copy(EVP_MAC_CTX *dst, const EVP_MAC_CTX *src)
 {
     EVP_MAC_IMPL *macdata;
 
@@ -82,6 +82,8 @@ int EVP_MAC_init(EVP_MAC_CTX *ctx)
 
 int EVP_MAC_update(EVP_MAC_CTX *ctx, const unsigned char *data, size_t datalen)
 {
+    if (datalen == 0)
+        return 1;
     return ctx->meth->update(ctx->data, data, datalen);
 }
 

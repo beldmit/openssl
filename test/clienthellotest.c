@@ -58,7 +58,7 @@ static int test_client_hello(int currtest)
     BIO *wbio;
     long len;
     unsigned char *data;
-    PACKET pkt = {0}, pkt2 = {0}, pkt3 = {0};
+    PACKET pkt, pkt2, pkt3;
     char *dummytick = "Hello World!";
     unsigned int type = 0;
     int testresult = 0;
@@ -71,6 +71,10 @@ static int test_client_hello(int currtest)
         return 1;
 #endif
 
+    memset(&pkt, 0, sizeof(pkt));
+    memset(&pkt2, 0, sizeof(pkt2));
+    memset(&pkt3, 0, sizeof(pkt3));
+
     /*
      * For each test set up an SSL_CTX and SSL and see what ClientHello gets
      * produced when we try to connect
@@ -78,7 +82,7 @@ static int test_client_hello(int currtest)
     ctx = SSL_CTX_new(TLS_method());
     if (!TEST_ptr(ctx))
         goto end;
-    if (!TEST_true(SSL_CTX_set_max_proto_version(ctx, TLS_MAX_VERSION)))
+    if (!TEST_true(SSL_CTX_set_max_proto_version(ctx, 0)))
         goto end;
 
     switch(currtest) {
@@ -99,8 +103,9 @@ static int test_client_hello(int currtest)
          * ClientHello is already going to be quite long. To avoid getting one
          * that is too long for this test we use a restricted ciphersuite list
          */
-        if (!TEST_true(SSL_CTX_set_cipher_list(ctx, "")))
+        if (!TEST_false(SSL_CTX_set_cipher_list(ctx, "")))
             goto end;
+        ERR_clear_error();
          /* Fall through */
     case TEST_ADD_PADDING:
     case TEST_PADDING_NOT_NEEDED:
@@ -239,6 +244,8 @@ end:
 
     return testresult;
 }
+
+OPT_TEST_DECLARE_USAGE("sessionfile\n")
 
 int setup_tests(void)
 {

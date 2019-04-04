@@ -348,10 +348,15 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                 psection = section;
             }
             p = eat_ws(conf, end);
-            if (strncmp(pname, ".include", 8) == 0 && p != pname + 8) {
+            if (strncmp(pname, ".include", 8) == 0
+                && (p != pname + 8 || *p == '=')) {
                 char *include = NULL;
                 BIO *next;
 
+                if (*p == '=') {
+                    p++;
+                    p = eat_ws(conf, p);
+                }
                 trim_ws(conf, p);
                 if (!str_copy(conf, psection, &include, p))
                     goto err;
@@ -664,7 +669,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
 static BIO *process_include(char *include, OPENSSL_DIR_CTX **dirctx,
                             char **dirpath)
 {
-    struct stat st = { 0 };
+    struct stat st;
     BIO *next;
 
     if (stat(include, &st) < 0) {

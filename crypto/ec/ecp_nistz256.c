@@ -888,8 +888,7 @@ __owur static int ecp_nistz256_mult_precompute(EC_GROUP *group, BN_CTX *ctx)
     ret = 1;
 
  err:
-    if (ctx != NULL)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
 
     EC_nistz256_pre_comp_free(pre_comp);
@@ -1432,7 +1431,7 @@ void EC_nistz256_pre_comp_free(NISTZ256_PRE_COMP *pre)
         return;
 
     CRYPTO_DOWN_REF(&pre->references, &i, pre->lock);
-    REF_PRINT_COUNT("EC_nistz256", x);
+    REF_PRINT_COUNT("EC_nistz256", pre);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);
@@ -1677,6 +1676,7 @@ const EC_METHOD *EC_GFp_nistz256_method(void)
         ec_GFp_mont_field_mul,
         ec_GFp_mont_field_sqr,
         0,                                          /* field_div */
+        ec_GFp_mont_field_inv,
         ec_GFp_mont_field_encode,
         ec_GFp_mont_field_decode,
         ec_GFp_mont_field_set_to_one,

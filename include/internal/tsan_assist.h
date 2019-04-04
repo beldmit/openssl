@@ -6,7 +6,7 @@
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
- 
+
 /*
  * Contemporary compilers implement lock-free atomic memory access
  * primitives that facilitate writing "thread-opportunistic" or even real
@@ -77,7 +77,7 @@
 
 #elif defined(_MSC_VER) && _MSC_VER>=1200 \
       && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64) || \
-          defined(_M_ARM64) || (defined(_M_ARM) && _M_ARM >= 7))
+          defined(_M_ARM64) || (defined(_M_ARM) && _M_ARM >= 7 && !defined(_WIN32_WCE)))
 /*
  * There is subtle dependency on /volatile:<iso|ms> command-line option.
  * "ms" implies same semantic as memory_order_acquire for loads and

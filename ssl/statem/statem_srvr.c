@@ -23,6 +23,7 @@
 #include <openssl/dh.h>
 #include <openssl/bn.h>
 #include <openssl/md5.h>
+#include <openssl/trace.h>
 
 #define TICKET_NONCE_SIZE       8
 
@@ -775,6 +776,10 @@ static ossl_inline int conn_is_closed(void)
     case ECONNRESET:
         return 1;
 #endif
+#if defined(WSAECONNRESET)
+    case WSAECONNRESET:
+        return 1;
+#endif
     default:
         return 0;
     }
@@ -830,6 +835,7 @@ WORK_STATE ossl_statem_server_post_work(SSL *s, WORK_STATE wst)
         if (SSL_IS_DTLS(s) && s->hit) {
             unsigned char sctpauthkey[64];
             char labelbuffer[sizeof(DTLS1_SCTP_AUTH_LABEL)];
+            size_t labellen;
 
             /*
              * Add new shared key for SCTP-Auth, will be ignored if no
@@ -838,9 +844,14 @@ WORK_STATE ossl_statem_server_post_work(SSL *s, WORK_STATE wst)
             memcpy(labelbuffer, DTLS1_SCTP_AUTH_LABEL,
                    sizeof(DTLS1_SCTP_AUTH_LABEL));
 
+            /* Don't include the terminating zero. */
+            labellen = sizeof(labelbuffer) - 1;
+            if (s->mode & SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG)
+                labellen += 1;
+
             if (SSL_export_keying_material(s, sctpauthkey,
                                            sizeof(sctpauthkey), labelbuffer,
-                                           sizeof(labelbuffer), NULL, 0,
+                                           labellen, NULL, 0,
                                            0) <= 0) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                          SSL_F_OSSL_STATEM_SERVER_POST_WORK,
@@ -1829,15 +1840,15 @@ static int tls_early_post_process_client_hello(SSL *s)
         j = 0;
         id = s->session->cipher->id;
 
-#ifdef CIPHER_DEBUG
-        fprintf(stderr, "client sent %d ciphers\n", sk_SSL_CIPHER_num(ciphers));
-#endif
+        OSSL_TRACE_BEGIN(TLS_CIPHER) {
+            BIO_printf(trc_out, "client sent %d ciphers\n",
+                       sk_SSL_CIPHER_num(ciphers));
+        }
         for (i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
             c = sk_SSL_CIPHER_value(ciphers, i);
-#ifdef CIPHER_DEBUG
-            fprintf(stderr, "client [%2d of %2d]:%s\n",
-                    i, sk_SSL_CIPHER_num(ciphers), SSL_CIPHER_get_name(c));
-#endif
+            if (trc_out != NULL)
+                BIO_printf(trc_out, "client [%2d of %2d]:%s\n", i,
+                           sk_SSL_CIPHER_num(ciphers), SSL_CIPHER_get_name(c));
             if (c->id == id) {
                 j = 1;
                 break;
@@ -1851,8 +1862,10 @@ static int tls_early_post_process_client_hello(SSL *s)
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
                      SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO,
                      SSL_R_REQUIRED_CIPHER_MISSING);
+            OSSL_TRACE_CANCEL(TLS_CIPHER);
             goto err;
         }
+        OSSL_TRACE_END(TLS_CIPHER);
     }
 
     for (loop = 0; loop < clienthello->compressions_len; loop++) {
@@ -3614,6 +3627,7 @@ WORK_STATE tls_post_process_client_key_exchange(SSL *s, WORK_STATE wst)
         if (SSL_IS_DTLS(s)) {
             unsigned char sctpauthkey[64];
             char labelbuffer[sizeof(DTLS1_SCTP_AUTH_LABEL)];
+            size_t labellen;
             /*
              * Add new shared key for SCTP-Auth, will be ignored if no SCTP
              * used.
@@ -3621,9 +3635,14 @@ WORK_STATE tls_post_process_client_key_exchange(SSL *s, WORK_STATE wst)
             memcpy(labelbuffer, DTLS1_SCTP_AUTH_LABEL,
                    sizeof(DTLS1_SCTP_AUTH_LABEL));
 
+            /* Don't include the terminating zero. */
+            labellen = sizeof(labelbuffer) - 1;
+            if (s->mode & SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG)
+                labellen += 1;
+
             if (SSL_export_keying_material(s, sctpauthkey,
                                            sizeof(sctpauthkey), labelbuffer,
-                                           sizeof(labelbuffer), NULL, 0,
+                                           labellen, NULL, 0,
                                            0) <= 0) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                          SSL_F_TLS_POST_PROCESS_CLIENT_KEY_EXCHANGE,
@@ -4142,7 +4161,6 @@ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
         uint64_t nonce;
         static const unsigned char nonce_label[] = "resumption";
         const EVP_MD *md = ssl_handshake_md(s);
-        void (*cb) (const SSL *ssl, int type, int val) = NULL;
         int hashleni = EVP_MD_size(md);
 
         /* Ensure cast to size_t is safe */
@@ -4154,24 +4172,6 @@ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
         }
         hashlen = (size_t)hashleni;
 
-        if (s->info_callback != NULL)
-            cb = s->info_callback;
-        else if (s->ctx->info_callback != NULL)
-            cb = s->ctx->info_callback;
-
-        if (cb != NULL) {
-            /*
-             * We don't start and stop the handshake in between each ticket when
-             * sending more than one - but it should appear that way to the info
-             * callback.
-             */
-            if (s->sent_tickets != 0) {
-                ossl_statem_set_in_init(s, 0);
-                cb(s, SSL_CB_HANDSHAKE_DONE, 1);
-                ossl_statem_set_in_init(s, 1);
-            }
-            cb(s, SSL_CB_HANDSHAKE_START, 1);
-        }
         /*
          * If we already sent one NewSessionTicket, or we resumed then
          * s->session may already be in a cache and so we must not modify it.

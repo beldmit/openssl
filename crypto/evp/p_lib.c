@@ -42,7 +42,7 @@ int EVP_PKEY_security_bits(const EVP_PKEY *pkey)
     return pkey->ameth->pkey_security_bits(pkey);
 }
 
-int EVP_PKEY_size(EVP_PKEY *pkey)
+int EVP_PKEY_size(const EVP_PKEY *pkey)
 {
     if (pkey && pkey->ameth && pkey->ameth->pkey_size)
         return pkey->ameth->pkey_size(pkey);
@@ -396,6 +396,11 @@ int EVP_PKEY_set1_engine(EVP_PKEY *pkey, ENGINE *e)
     pkey->pmeth_engine = e;
     return 1;
 }
+
+ENGINE *EVP_PKEY_get0_engine(const EVP_PKEY *pkey)
+{
+    return pkey->engine;
+}
 #endif
 int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key)
 {
@@ -460,7 +465,7 @@ int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key)
     return ret;
 }
 
-RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
+RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_RSA) {
         EVPerr(EVP_F_EVP_PKEY_GET0_RSA, EVP_R_EXPECTING_AN_RSA_KEY);
@@ -487,7 +492,7 @@ int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key)
     return ret;
 }
 
-DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey)
+DSA *EVP_PKEY_get0_DSA(const EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_DSA) {
         EVPerr(EVP_F_EVP_PKEY_GET0_DSA, EVP_R_EXPECTING_A_DSA_KEY);
@@ -515,7 +520,7 @@ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key)
     return ret;
 }
 
-EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
+EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_EC) {
         EVPerr(EVP_F_EVP_PKEY_GET0_EC_KEY, EVP_R_EXPECTING_A_EC_KEY);
@@ -543,7 +548,7 @@ int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key)
     return ret;
 }
 
-DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey)
+DH *EVP_PKEY_get0_DH(const EVP_PKEY *pkey)
 {
     if (pkey->type != EVP_PKEY_DH && pkey->type != EVP_PKEY_DHX) {
         EVPerr(EVP_F_EVP_PKEY_GET0_DH, EVP_R_EXPECTING_A_DH_KEY);

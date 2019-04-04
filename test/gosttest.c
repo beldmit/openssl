@@ -41,7 +41,7 @@ static int test_tls13(int idx)
     if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
                                        TLS_client_method(),
                                        TLS1_VERSION,
-                                       TLS_MAX_VERSION,
+                                       0,
                                        &sctx, &cctx,
                                        ciphers[idx].certnum == 0 ? cert1
                                                                  : cert2,
@@ -77,6 +77,8 @@ static int test_tls13(int idx)
 
     return testresult;
 }
+
+OPT_TEST_DECLARE_USAGE("certfile1 privkeyfile1 certfile2 privkeyfile2\n")
 
 int setup_tests(void)
 {

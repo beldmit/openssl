@@ -22,6 +22,7 @@
 #include <openssl/dh.h>
 #include <openssl/bn.h>
 #include <openssl/engine.h>
+#include <openssl/trace.h>
 #include <internal/cryptlib.h>
 
 static MSG_PROCESS_RETURN tls_process_as_hello_retry_request(SSL *s, PACKET *pkt);
@@ -163,7 +164,7 @@ static int ossl_statem_client13_read_transition(SSL *s, int mt)
             return 1;
         }
         if (mt == SSL3_MT_CERTIFICATE_REQUEST) {
-#if DTLS_MAX_VERSION != DTLS1_2_VERSION
+#if DTLS_MAX_VERSION_INTERNAL != DTLS1_2_VERSION
 # error TODO(DTLS1.3): Restore digest for PHA before adding message.
 #endif
             if (!SSL_IS_DTLS(s) && s->post_handshake_auth == SSL_PHA_EXT_SENT) {
@@ -1112,13 +1113,6 @@ int tls_construct_client_hello(SSL *s, WPACKET *pkt)
     SSL_SESSION *sess = s->session;
     unsigned char *session_id;
 
-    if (!WPACKET_set_max_size(pkt, SSL3_RT_MAX_PLAIN_LENGTH)) {
-        /* Should not happen */
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_CONSTRUCT_CLIENT_HELLO, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-
     /* Work out what SSL/TLS/DTLS version to use */
     protverr = ssl_set_client_hello_version(s);
     if (protverr != 0) {
@@ -1620,10 +1614,7 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
          * so the PAC-based session secret is always preserved. It'll be
          * overwritten if the server refuses resumption.
          */
-        if (s->session->session_id_length > 0
-                || (SSL_IS_TLS13(s)
-                    && s->session->ext.tick_identity
-                       != TLSEXT_PSK_BAD_IDENTITY)) {
+        if (s->session->session_id_length > 0) {
             tsan_counter(&s->session_ctx->stats.sess_miss);
             if (!ssl_get_new_session(s, 0)) {
                 /* SSLfatal() already called */
@@ -1714,6 +1705,7 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
     if (SSL_IS_DTLS(s) && s->hit) {
         unsigned char sctpauthkey[64];
         char labelbuffer[sizeof(DTLS1_SCTP_AUTH_LABEL)];
+        size_t labellen;
 
         /*
          * Add new shared key for SCTP-Auth, will be ignored if
@@ -1722,10 +1714,15 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
         memcpy(labelbuffer, DTLS1_SCTP_AUTH_LABEL,
                sizeof(DTLS1_SCTP_AUTH_LABEL));
 
+        /* Don't include the terminating zero. */
+        labellen = sizeof(labelbuffer) - 1;
+        if (s->mode & SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG)
+            labellen += 1;
+
         if (SSL_export_keying_material(s, sctpauthkey,
                                        sizeof(sctpauthkey),
                                        labelbuffer,
-                                       sizeof(labelbuffer), NULL, 0, 0) <= 0) {
+                                       labellen, NULL, 0, 0) <= 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_SERVER_HELLO,
                      ERR_R_INTERNAL_ERROR);
             goto err;
@@ -2351,11 +2348,9 @@ MSG_PROCESS_RETURN tls_process_key_exchange(SSL *s, PACKET *pkt)
                      ERR_R_INTERNAL_ERROR);
             goto err;
         }
-#ifdef SSL_DEBUG
         if (SSL_USE_SIGALGS(s))
-            fprintf(stderr, "USING TLSv1.2 HASH %s\n",
-                    md == NULL ? "n/a" : EVP_MD_name(md));
-#endif
+            OSSL_TRACE1(TLS, "USING TLSv1.2 HASH %s\n",
+                        md == NULL ? "n/a" : EVP_MD_name(md));
 
         if (!PACKET_get_length_prefixed_2(pkt, &signature)
             || PACKET_remaining(pkt) != 0) {
@@ -3529,6 +3524,7 @@ int tls_client_key_exchange_post_work(SSL *s)
     if (SSL_IS_DTLS(s)) {
         unsigned char sctpauthkey[64];
         char labelbuffer[sizeof(DTLS1_SCTP_AUTH_LABEL)];
+        size_t labellen;
 
         /*
          * Add new shared key for SCTP-Auth, will be ignored if no SCTP
@@ -3537,9 +3533,14 @@ int tls_client_key_exchange_post_work(SSL *s)
         memcpy(labelbuffer, DTLS1_SCTP_AUTH_LABEL,
                sizeof(DTLS1_SCTP_AUTH_LABEL));
 
+        /* Don't include the terminating zero. */
+        labellen = sizeof(labelbuffer) - 1;
+        if (s->mode & SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG)
+            labellen += 1;
+
         if (SSL_export_keying_material(s, sctpauthkey,
                                        sizeof(sctpauthkey), labelbuffer,
-                                       sizeof(labelbuffer), NULL, 0, 0) <= 0) {
+                                       labellen, NULL, 0, 0) <= 0) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_CLIENT_KEY_EXCHANGE_POST_WORK,
                      ERR_R_INTERNAL_ERROR);

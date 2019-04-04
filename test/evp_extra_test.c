@@ -18,6 +18,7 @@
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/kdf.h>
+#include <openssl/provider.h>
 #include "testutil.h"
 #include "internal/nelem.h"
 #include "internal/evp_int.h"
@@ -299,6 +300,21 @@ static const unsigned char kExampleECPubKeyDER[] = {
     0x56, 0x6a, 0xc6, 0xc8, 0xa5, 0x0b, 0xe5
 };
 
+/*
+ * kExampleBadECKeyDER is a sample EC public key with a wrong OID
+ * 1.2.840.10045.2.2 instead of 1.2.840.10045.2.1 - EC Public Key
+ */
+static const unsigned char kExampleBadECPubKeyDER[] = {
+    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x02, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+    0x42, 0x00, 0x04, 0xba, 0xeb, 0x83, 0xfb, 0x3b, 0xb2, 0xff, 0x30, 0x53,
+    0xdb, 0xce, 0x32, 0xf2, 0xac, 0xae, 0x44, 0x0d, 0x3d, 0x13, 0x53, 0xb8,
+    0xd1, 0x68, 0x55, 0xde, 0x44, 0x46, 0x05, 0xa6, 0xc9, 0xd2, 0x04, 0xb7,
+    0xe3, 0xa2, 0x96, 0xc8, 0xb2, 0x5e, 0x22, 0x03, 0xd7, 0x03, 0x7a, 0x8b,
+    0x13, 0x5c, 0x42, 0x49, 0xc2, 0xab, 0x86, 0xd6, 0xac, 0x6b, 0x93, 0x20,
+    0x56, 0x6a, 0xc6, 0xc8, 0xa5, 0x0b, 0xe5
+};
+
 static const unsigned char pExampleECParamDER[] = {
     0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
 };
@@ -494,6 +510,66 @@ static int test_d2i_AutoPrivateKey(int i)
 }
 
 #ifndef OPENSSL_NO_EC
+
+static const unsigned char ec_public_sect163k1_validxy[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x02, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
+};
+
+static const unsigned char ec_public_sect163k1_badx[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x0a, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0xb0, 0x02, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0x2f
+};
+
+static const unsigned char ec_public_sect163k1_bady[] = {
+    0x30, 0x40, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x01, 0x03, 0x2c, 0x00, 0x04,
+    0x02, 0x84, 0x58, 0xa6, 0xd4, 0xa0, 0x35, 0x2b, 0xae, 0xf0, 0xc0, 0x69,
+    0x05, 0xcf, 0x2a, 0x50, 0x33, 0xf9, 0xe3, 0x92, 0x79, 0x0a, 0xd1, 0x7b,
+    0x9f, 0x22, 0x00, 0xf0, 0x3b, 0x0e, 0x5d, 0x2e, 0xb7, 0x23, 0x24, 0xf3,
+    0x6a, 0xd8, 0x17, 0x65, 0x41, 0xe6
+};
+
+static struct ec_der_pub_keys_st {
+    const unsigned char *der;
+    size_t len;
+    int valid;
+} ec_der_pub_keys[] = {
+    { ec_public_sect163k1_validxy, sizeof(ec_public_sect163k1_validxy), 1 },
+    { ec_public_sect163k1_badx, sizeof(ec_public_sect163k1_badx), 0 },
+    { ec_public_sect163k1_bady, sizeof(ec_public_sect163k1_bady), 0 },
+};
+
+/*
+ * Tests the range of the decoded EC char2 public point.
+ * See ec_GF2m_simple_oct2point().
+ */
+static int test_invalide_ec_char2_pub_range_decode(int id)
+{
+    int ret = 0;
+    BIO *bio = NULL;
+    EC_KEY *eckey = NULL;
+
+    if (!TEST_ptr(bio = BIO_new_mem_buf(ec_der_pub_keys[id].der,
+                                        ec_der_pub_keys[id].len)))
+        goto err;
+    eckey = d2i_EC_PUBKEY_bio(bio, NULL);
+    ret = (ec_der_pub_keys[id].valid && TEST_ptr(eckey))
+          || TEST_ptr_null(eckey);
+err:
+    EC_KEY_free(eckey);
+    BIO_free(bio);
+    return ret;
+}
+
 /* Tests loading a bad key in PKCS8 format */
 static int test_EVP_PKCS82PKEY(void)
 {
@@ -963,6 +1039,145 @@ static int test_HKDF(void)
     return ret;
 }
 
+#ifndef OPENSSL_NO_EC
+static int test_X509_PUBKEY_inplace(void)
+{
+  int ret = 0;
+  X509_PUBKEY *xp = NULL;
+  const unsigned char *p = kExampleECPubKeyDER;
+  size_t input_len = sizeof(kExampleECPubKeyDER);
+
+  if (!TEST_ptr(xp = d2i_X509_PUBKEY(NULL, &p, input_len)))
+    goto done;
+
+  if (!TEST_ptr(X509_PUBKEY_get0(xp)))
+    goto done;
+
+  p = kExampleBadECPubKeyDER;
+  input_len = sizeof(kExampleBadECPubKeyDER);
+
+  if (!TEST_ptr(xp = d2i_X509_PUBKEY(&xp, &p, input_len)))
+    goto done;
+
+  if (!TEST_true(X509_PUBKEY_get0(xp) == NULL))
+    goto done;
+
+  ret = 1;
+
+done:
+  X509_PUBKEY_free(xp);
+  return ret;
+}
+#endif
+
+
+static int calculate_digest(const EVP_MD *md, const char *msg, size_t len,
+                            const unsigned char *exptd)
+{
+    unsigned char out[SHA256_DIGEST_LENGTH];
+    EVP_MD_CTX *ctx;
+    int ret = 0;
+
+    if (!TEST_ptr(ctx = EVP_MD_CTX_new())
+            || !TEST_true(EVP_DigestInit_ex(ctx, md, NULL))
+            || !TEST_true(EVP_DigestUpdate(ctx, msg, len))
+            || !TEST_true(EVP_DigestFinal_ex(ctx, out, NULL))
+            || !TEST_mem_eq(out, SHA256_DIGEST_LENGTH, exptd,
+                            SHA256_DIGEST_LENGTH)
+            || !TEST_true(md == EVP_MD_CTX_md(ctx)))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_MD_CTX_free(ctx);
+    return ret;
+}
+/*
+ * Test EVP_MD_fetch()
+ *
+ * Test 0: Test with the default OPENSSL_CTX
+ * Test 1: Test with an explicit OPENSSL_CTX
+ * Test 2: Explicit OPENSSL_CTX with explicit load of default provider
+ */
+static int test_EVP_MD_fetch(int tst)
+{
+    OPENSSL_CTX *ctx = NULL;
+    EVP_MD *md = NULL;
+    OSSL_PROVIDER *prov = NULL;
+    int ret = 0;
+    const char testmsg[] = "Hello world";
+    const unsigned char exptd[] = {
+      0x27, 0x51, 0x8b, 0xa9, 0x68, 0x30, 0x11, 0xf6, 0xb3, 0x96, 0x07, 0x2c,
+      0x05, 0xf6, 0x65, 0x6d, 0x04, 0xf5, 0xfb, 0xc3, 0x78, 0x7c, 0xf9, 0x24,
+      0x90, 0xec, 0x60, 0x6e, 0x50, 0x92, 0xe3, 0x26
+    };
+
+    if (tst > 0) {
+        ctx = OPENSSL_CTX_new();
+        if (!TEST_ptr(ctx))
+            goto err;
+
+        if (tst == 2) {
+            prov = OSSL_PROVIDER_load(ctx, "default");
+            if (!TEST_ptr(prov))
+                goto err;
+        }
+    }
+
+    /* Implicit fetching of the MD should produce the expected result */
+    if (!TEST_true(calculate_digest(EVP_sha256(), testmsg, sizeof(testmsg),
+                                    exptd))
+            || !TEST_int_eq(EVP_MD_size(EVP_sha256()), SHA256_DIGEST_LENGTH)
+            || !TEST_int_eq(EVP_MD_block_size(EVP_sha256()), SHA256_CBLOCK))
+        goto err;
+
+    /*
+     * Test that without loading any providers or specifying any properties we
+     * can get a sha256 md from the default provider.
+     */
+    if (!TEST_ptr(md = EVP_MD_fetch(ctx, "SHA256", NULL))
+            || !TEST_ptr(md)
+            || !TEST_int_eq(EVP_MD_nid(md), NID_sha256)
+            || !TEST_true(calculate_digest(md, testmsg, sizeof(testmsg), exptd))
+            || !TEST_int_eq(EVP_MD_size(md), SHA256_DIGEST_LENGTH)
+            || !TEST_int_eq(EVP_MD_block_size(md), SHA256_CBLOCK))
+        goto err;
+
+    /* Also test EVP_MD_upref() while we're doing this */
+    if (!TEST_true(EVP_MD_upref(md)))
+        goto err;
+    /* Ref count should now be 2. Release both */
+    EVP_MD_meth_free(md);
+    EVP_MD_meth_free(md);
+    md = NULL;
+
+    /*
+     * We've only loaded the default provider so explicitly asking for a
+     * non-default implementation should fail.
+     */
+    if (!TEST_ptr_null(md = EVP_MD_fetch(ctx, "SHA256", "default=no")))
+        goto err;
+
+    /* Explicitly asking for the default implementation should succeeed */
+    if (!TEST_ptr(md = EVP_MD_fetch(ctx, "SHA256", "default=yes"))
+            || !TEST_int_eq(EVP_MD_nid(md), NID_sha256)
+            || !TEST_true(calculate_digest(md, testmsg, sizeof(testmsg), exptd))
+            || !TEST_int_eq(EVP_MD_size(md), SHA256_DIGEST_LENGTH)
+            || !TEST_int_eq(EVP_MD_block_size(md), SHA256_CBLOCK))
+        goto err;
+
+    EVP_MD_meth_free(md);
+    md = NULL;
+
+    ret = 1;
+
+ err:
+    EVP_MD_meth_free(md);
+    OSSL_PROVIDER_unload(prov);
+    OPENSSL_CTX_free(ctx);
+    return ret;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_EVP_DigestSignInit);
@@ -987,5 +1202,11 @@ int setup_tests(void)
         return 0;
     ADD_ALL_TESTS(test_EVP_PKEY_check, OSSL_NELEM(keycheckdata));
     ADD_TEST(test_HKDF);
+#ifndef OPENSSL_NO_EC
+    ADD_TEST(test_X509_PUBKEY_inplace);
+    ADD_ALL_TESTS(test_invalide_ec_char2_pub_range_decode,
+                  OSSL_NELEM(ec_der_pub_keys));
+#endif
+    ADD_ALL_TESTS(test_EVP_MD_fetch, 3);
     return 1;
 }

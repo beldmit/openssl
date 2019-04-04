@@ -34,6 +34,7 @@
 # include "internal/dane.h"
 # include "internal/refcount.h"
 # include "internal/tsan_assist.h"
+# include "internal/bio.h"
 
 # ifdef OPENSSL_BUILD_SHLIBSSL
 #  undef OPENSSL_EXTERN
@@ -129,6 +130,9 @@
 # define l2n3(l,c)       (((c)[0]=(unsigned char)(((l)>>16)&0xff), \
                            (c)[1]=(unsigned char)(((l)>> 8)&0xff), \
                            (c)[2]=(unsigned char)(((l)    )&0xff)),(c)+=3)
+
+# define TLS_MAX_VERSION_INTERNAL TLS1_3_VERSION
+# define DTLS_MAX_VERSION_INTERNAL DTLS1_2_VERSION
 
 /*
  * DTLS version numbers are strange because they're inverted. Except for
@@ -587,7 +591,6 @@ struct ssl_session_st {
         /* Session lifetime hint in seconds */
         unsigned long tick_lifetime_hint;
         uint32_t tick_age_add;
-        int tick_identity;
         /* Max number of bytes that can be sent as early data */
         uint32_t max_early_data;
         /* The ALPN protocol selected for this session */
@@ -1085,6 +1088,10 @@ struct ssl_ctx_st {
 
     /* Do we advertise Post-handshake auth support? */
     int pha_enabled;
+
+    /* Callback for SSL async handling */
+    SSL_async_callback_fn async_cb;
+    void *async_cb_arg;
 };
 
 struct ssl_st {
@@ -1183,8 +1190,6 @@ struct ssl_st {
     EVP_CIPHER_CTX *enc_write_ctx; /* cryptographic state */
     unsigned char write_iv[EVP_MAX_IV_LENGTH]; /* TLSv1.3 static write IV */
     EVP_MD_CTX *write_hash;     /* used for mac generation */
-    /* Count of how many KeyUpdate messages we have received */
-    unsigned int key_update_count;
     /* session info */
     /* client cert? */
     /* This is used to hold the server certificate used */
@@ -1371,6 +1376,13 @@ struct ssl_st {
          * as this extension is optional on server side.
          */
         uint8_t max_fragment_len_mode;
+
+        /*
+         * On the client side the number of ticket identities we sent in the
+         * ClientHello. On the server side the identity of the ticket we
+         * selected.
+         */
+        int tick_identity;
     } ext;
 
     /*
@@ -1480,6 +1492,10 @@ struct ssl_st {
     /* Callback to determine if early_data is acceptable or not */
     SSL_allow_early_data_cb_fn allow_early_data_cb;
     void *allow_early_data_cb_data;
+
+    /* Callback for SSL async handling */
+    SSL_async_callback_fn async_cb;
+    void *async_cb_arg;
 };
 
 /*
@@ -2067,9 +2083,6 @@ typedef enum downgrade_en {
 #define TLSEXT_KEX_MODE_FLAG_KE                                 1
 #define TLSEXT_KEX_MODE_FLAG_KE_DHE                             2
 
-/* An invalid index into the TLSv1.3 PSK identities */
-#define TLSEXT_PSK_BAD_IDENTITY                                 -1
-
 #define SSL_USE_PSS(s) (s->s3->tmp.peer_sigalg != NULL && \
                         s->s3->tmp.peer_sigalg->sig == EVP_PKEY_RSA_PSS)
 
@@ -2271,7 +2284,7 @@ __owur int ssl_get_new_session(SSL *s, int session);
 __owur SSL_SESSION *lookup_sess_in_cache(SSL *s, const unsigned char *sess_id,
                                          size_t sess_id_len);
 __owur int ssl_get_prev_session(SSL *s, CLIENTHELLO_MSG *hello);
-__owur SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket);
+__owur SSL_SESSION *ssl_session_dup(const SSL_SESSION *src, int ticket);
 __owur int ssl_cipher_id_cmp(const SSL_CIPHER *a, const SSL_CIPHER *b);
 DECLARE_OBJ_BSEARCH_GLOBAL_CMP_FN(SSL_CIPHER, SSL_CIPHER, ssl_cipher_id);
 __owur int ssl_cipher_ptr_id_cmp(const SSL_CIPHER *const *ap,

@@ -16,6 +16,7 @@
 #include <openssl/md5.h>
 #include <openssl/dh.h>
 #include <openssl/rand.h>
+#include <openssl/trace.h>
 #include "internal/cryptlib.h"
 
 #define TLS13_NUM_CIPHERS       OSSL_NELEM(tls13_ciphers)
@@ -3578,13 +3579,6 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
         ret = 1;
         break;
 
-#ifndef OPENSSL_NO_HEARTBEATS
-    case SSL_CTRL_DTLS_EXT_SEND_HEARTBEAT:
-    case SSL_CTRL_GET_DTLS_EXT_HEARTBEAT_PENDING:
-    case SSL_CTRL_SET_DTLS_EXT_HEARTBEAT_NO_REQUESTS:
-        break;
-#endif
-
     case SSL_CTRL_CHAIN:
         if (larg)
             return ssl_cert_set1_chain(s, NULL, (STACK_OF(X509) *)parg);
@@ -4185,20 +4179,20 @@ const SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
      * pay with the price of sk_SSL_CIPHER_dup().
      */
 
-#ifdef CIPHER_DEBUG
-    fprintf(stderr, "Server has %d from %p:\n", sk_SSL_CIPHER_num(srvr),
-            (void *)srvr);
-    for (i = 0; i < sk_SSL_CIPHER_num(srvr); ++i) {
-        c = sk_SSL_CIPHER_value(srvr, i);
-        fprintf(stderr, "%p:%s\n", (void *)c, c->name);
-    }
-    fprintf(stderr, "Client sent %d from %p:\n", sk_SSL_CIPHER_num(clnt),
-            (void *)clnt);
-    for (i = 0; i < sk_SSL_CIPHER_num(clnt); ++i) {
-        c = sk_SSL_CIPHER_value(clnt, i);
-        fprintf(stderr, "%p:%s\n", (void *)c, c->name);
-    }
-#endif
+    OSSL_TRACE_BEGIN(TLS_CIPHER) {
+        BIO_printf(trc_out, "Server has %d from %p:\n",
+                   sk_SSL_CIPHER_num(srvr), (void *)srvr);
+        for (i = 0; i < sk_SSL_CIPHER_num(srvr); ++i) {
+            c = sk_SSL_CIPHER_value(srvr, i);
+            BIO_printf(trc_out, "%p:%s\n", (void *)c, c->name);
+        }
+        BIO_printf(trc_out, "Client sent %d from %p:\n",
+                   sk_SSL_CIPHER_num(clnt), (void *)clnt);
+        for (i = 0; i < sk_SSL_CIPHER_num(clnt); ++i) {
+            c = sk_SSL_CIPHER_value(clnt, i);
+            BIO_printf(trc_out, "%p:%s\n", (void *)c, c->name);
+        }
+    } OSSL_TRACE_END(TLS_CIPHER);
 
     /* SUITE-B takes precedence over server preference and ChaCha priortiy */
     if (tls1_suiteb(s)) {
@@ -4312,10 +4306,9 @@ const SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
 #endif                          /* OPENSSL_NO_PSK */
 
             ok = (alg_k & mask_k) && (alg_a & mask_a);
-#ifdef CIPHER_DEBUG
-            fprintf(stderr, "%d:[%08lX:%08lX:%08lX:%08lX]%p:%s\n", ok, alg_k,
-                    alg_a, mask_k, mask_a, (void *)c, c->name);
-#endif
+            OSSL_TRACE7(TLS_CIPHER,
+                        "%d:[%08lX:%08lX:%08lX:%08lX]%p:%s\n",
+                        ok, alg_k, alg_a, mask_k, mask_a, (void *)c, c->name);
 
 #ifndef OPENSSL_NO_EC
             /*

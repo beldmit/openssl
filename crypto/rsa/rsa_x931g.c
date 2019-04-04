@@ -128,11 +128,12 @@ int RSA_X931_derive_ex(RSA *rsa, BIGNUM *p1, BIGNUM *p2, BIGNUM *q1,
 
     /* calculate inverse of q mod p */
     rsa->iqmp = BN_mod_inverse(NULL, rsa->q, rsa->p, ctx2);
+    if (rsa->iqmp == NULL)
+        goto err;
 
     ret = 1;
  err:
-    if (ctx)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     BN_CTX_free(ctx2);
 
@@ -186,8 +187,7 @@ int RSA_X931_generate_key_ex(RSA *rsa, int bits, const BIGNUM *e,
     ok = 1;
 
  error:
-    if (ctx)
-        BN_CTX_end(ctx);
+    BN_CTX_end(ctx);
     BN_CTX_free(ctx);
 
     if (ok)
