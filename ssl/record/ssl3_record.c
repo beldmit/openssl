@@ -977,6 +977,9 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending)
     unsigned char padval;
     int imac_size;
     const EVP_CIPHER *enc;
+    int tlstree_enc = (sending ? (s->mac_flags & SSL_MAC_FLAG_WRITE_MAC_TLSTREE)
+                      : (s->mac_flags & SSL_MAC_FLAG_READ_MAC_TLSTREE));
+    
     if (n_recs == 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_ENC,
                  ERR_R_INTERNAL_ERROR);
@@ -1153,7 +1156,7 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending)
             }
         }
 
-        if (!SSL_IS_DTLS(s) && (s->mac_flags & (SSL_MAC_FLAG_READ_MAC_TLSTREE|SSL_MAC_FLAG_WRITE_MAC_TLSTREE))) {
+        if (!SSL_IS_DTLS(s) && tlstree_enc) {
           unsigned char *seq;
 
           seq = sending ? RECORD_LAYER_get_write_sequence(&s->rlayer)
