@@ -71,7 +71,7 @@ typedef enum OPTION_choice {
     OPT_NAME, OPT_CSP, OPT_CANAME,
     OPT_IN, OPT_OUT, OPT_PASSIN, OPT_PASSOUT, OPT_PASSWORD, OPT_CAPATH,
     OPT_CAFILE, OPT_CASTORE, OPT_NOCAPATH, OPT_NOCAFILE, OPT_NOCASTORE, OPT_ENGINE,
-    OPT_R_ENUM, OPT_PROV_ENUM,
+    OPT_R_ENUM, OPT_PROV_ENUM, OPT_PBMAC1,
 #ifndef OPENSSL_NO_DES
     OPT_LEGACY_ALG
 #endif
@@ -148,6 +148,7 @@ const OPTIONS pkcs12_options[] = {
 #endif
     {"macalg", OPT_MACALG, 's',
      "Digest algorithm to use in MAC (default SHA256)"},
+    {"pbmac1", OPT_PBMAC1, '-', "Use PBMAC1 instead of MAC"},
     {"iter", OPT_ITER, 'p', "Specify the iteration count for encryption and MAC"},
     {"noiter", OPT_NOITER, '-', "Don't use encryption iteration"},
     {"nomaciter", OPT_NOMACITER, '-', "Don't use MAC iteration)"},
@@ -169,7 +170,7 @@ int pkcs12_main(int argc, char **argv)
     int use_legacy = 0;
 #endif
     /* use library defaults for the iter, maciter, cert, and key PBE */
-    int iter = 0, maciter = 0;
+    int iter = 0, maciter = 0, pbmac1 = 0;
     int macsaltlen = PKCS12_SALT_LEN;
     int cert_pbe = NID_undef;
     int key_pbe = NID_undef;
@@ -276,6 +277,9 @@ int pkcs12_main(int argc, char **argv)
             break;
         case OPT_MACALG:
             macalg = opt_arg();
+            break;
+        case OPT_PBMAC1:
+            pbmac1 = 1;
             break;
         case OPT_CERTPBE:
             if (!set_pbe(&cert_pbe, opt_arg()))
@@ -716,10 +720,18 @@ int pkcs12_main(int argc, char **argv)
         }
 
         if (maciter != -1) {
-            if (!PKCS12_set_mac(p12, mpass, -1, NULL, macsaltlen, maciter, macmd)) {
-                BIO_printf(bio_err, "Error creating PKCS12 MAC; no PKCS12KDF support?\n");
-                BIO_printf(bio_err, "Use -nomac if MAC not required and PKCS12KDF support not available.\n");
-                goto export_end;
+            if (pbmac1 == 1) {
+                if (!PKCS12_set_pbmac1(p12, mpass, -1, NULL, macsaltlen, maciter, macmd)) {
+                    BIO_printf(bio_err, "Error creating PBMAC1\n");
+                    BIO_printf(bio_err, "Use -nomac if MAC not required.\n");
+                    goto export_end;
+                }
+            } else {
+                if (!PKCS12_set_mac(p12, mpass, -1, NULL, macsaltlen, maciter, macmd)) {
+                    BIO_printf(bio_err, "Error creating PKCS12 MAC; no PKCS12KDF support?\n");
+                    BIO_printf(bio_err, "Use -nomac if MAC not required and PKCS12KDF support not available.\n");
+                    goto export_end;
+                }
             }
         }
         assert(private);
