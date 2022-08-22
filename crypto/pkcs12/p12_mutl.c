@@ -20,9 +20,10 @@
 #include <openssl/rand.h>
 #include <openssl/pkcs12.h>
 #include "p12_local.h"
+#include <openssl/asn1t.h>
 
 static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
-                            int nid, X509_ALGOR *alg);
+                            int nid, X509_ALGOR *alg, int hmac_nid);
 static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
                                  unsigned char *salt, int saltlen,
                                  int id, int iter, int n,
@@ -209,7 +210,7 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
         if (kdfalg == NULL) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             return 0;
-	}
+        }
         X509_ALGOR_get0(&kdfoid, NULL, NULL, macalg);
         if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, pkcs12_pbmac1_key_gen)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
@@ -273,6 +274,14 @@ static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
                            md_type, n, out);
 }
 
+/*
+ * FIXME
+ * For the test purpose we assume that
+ * 1. HMAC key len is equal to digest output len
+ * 2. PBMAC1 uses the same digest for PBKDF2 and for mac itself
+ *
+ * Otherwise MAC keylen and algorithm should be passed like separate parameters
+ */
 int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
                    unsigned char *salt, int saltlen, int iter,
                    const EVP_MD *md_type)
@@ -284,12 +293,15 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
     int ret = 0;
     int prf_nid = NID_undef;
     unsigned char *known_salt = NULL;
+    int keylen = 0;
 
     if (md_type == NULL)
         /* No need to do a fetch as the md_type is used only to get a NID */
         md_type = EVP_sha256();
     if (iter == 0)
         iter = PKCS12_DEFAULT_ITER;
+
+    keylen = EVP_MD_get_size(md_type);
 
     switch(EVP_MD_get_type(md_type)) {
         case NID_sha1:                    prf_nid = NID_hmacWithSHA1; break;
@@ -326,11 +338,11 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
         }
     }
 
-    alg = PKCS5_pbkdf2_set(iter, salt ? salt : known_salt, saltlen, prf_nid, 0);
+    alg = PKCS5_pbkdf2_set(iter, salt ? salt : known_salt, saltlen, prf_nid, keylen);
 
     if ((alg == NULL) ||
         (pkcs12_setup_mac(p12, iter, salt ? salt : known_salt, saltlen,
-                          NID_pbmac1, alg) == PKCS12_ERROR)) {
+                          NID_pbmac1, alg, prf_nid) == PKCS12_ERROR)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_SETUP_ERROR);
         goto err;
     }
@@ -355,8 +367,20 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
     return ret;
 }
 
+typedef struct {
+    X509_ALGOR *keyDerivationFunc;
+    X509_ALGOR *messageAuthScheme;
+} PBMAC1PARAM;
+
+ASN1_SEQUENCE(PBMAC1PARAM) = {
+        ASN1_SIMPLE(PBMAC1PARAM, keyDerivationFunc, X509_ALGOR),
+        ASN1_SIMPLE(PBMAC1PARAM, messageAuthScheme, X509_ALGOR)
+} ASN1_SEQUENCE_END(PBMAC1PARAM)
+
+IMPLEMENT_ASN1_FUNCTIONS(PBMAC1PARAM)
+
 static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
-                            int nid, X509_ALGOR *alg)
+                            int nid, X509_ALGOR *alg, int hmac_nid)
 {
     X509_ALGOR *macalg;
 
@@ -395,10 +419,26 @@ static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int salt
         return 0;
     }
     if (alg) {
-        if (!ASN1_TYPE_pack_sequence(ASN1_ITEM_rptr(X509_ALGOR), alg, &macalg->parameter)) {
+        /* FIXME memory management */
+        PBMAC1PARAM *param = PBMAC1PARAM_new();
+        X509_ALGOR  *hmac_alg = X509_ALGOR_new();
+
+        param->keyDerivationFunc = alg;
+        param->messageAuthScheme = hmac_alg;
+
+        if (!X509_ALGOR_set0(hmac_alg, OBJ_nid2obj(hmac_nid), V_ASN1_NULL, NULL)) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
             return 0;
         }
+
+        if (!ASN1_TYPE_pack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), param, &macalg->parameter)) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
+
+/*
+        X509_ALGOR_free(hmac_alg);
+        PBMAC1PARAM_free(param); */
     }
 
     return 1;
@@ -409,5 +449,5 @@ int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
                      const EVP_MD *md_type)
 {
     return pkcs12_setup_mac(p12, iter, salt, saltlen,
-        EVP_MD_get_type(md_type), NULL);
+        EVP_MD_get_type(md_type), NULL, NID_undef);
 }
