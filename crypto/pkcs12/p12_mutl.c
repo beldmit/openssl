@@ -22,6 +22,18 @@
 #include "p12_local.h"
 #include <openssl/asn1t.h>
 
+typedef struct {
+    X509_ALGOR *keyDerivationFunc;
+    X509_ALGOR *messageAuthScheme;
+} PBMAC1PARAM;
+
+ASN1_SEQUENCE(PBMAC1PARAM) = {
+        ASN1_SIMPLE(PBMAC1PARAM, keyDerivationFunc, X509_ALGOR),
+        ASN1_SIMPLE(PBMAC1PARAM, messageAuthScheme, X509_ALGOR)
+} ASN1_SEQUENCE_END(PBMAC1PARAM)
+
+IMPLEMENT_ASN1_FUNCTIONS(PBMAC1PARAM)
+
 static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
                             int nid, X509_ALGOR *alg, int hmac_nid);
 static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
@@ -203,16 +215,34 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
     X509_SIG_get0(p12->mac->dinfo, &macalg, NULL);
     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
     if (OBJ_obj2nid(macoid) == NID_pbmac1) {
-        X509_ALGOR *kdfalg = NULL;
-        const ASN1_OBJECT *kdfoid;
+        PBMAC1PARAM *param = NULL;
+	int hmac_nid = NID_undef, md_nid = NID_undef;
 
-        kdfalg = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(X509_ALGOR), macalg->parameter);
-        if (kdfalg == NULL) {
+        param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
+        if (param == NULL) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             return 0;
         }
-        X509_ALGOR_get0(&kdfoid, NULL, NULL, macalg);
-        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, pkcs12_pbmac1_key_gen)) {
+/*
+    switch(EVP_MD_get_type(md_type)) {
+        case NID_sha1:                    prf_nid = NID_hmacWithSHA1; break;
+        case NID_md5:                     prf_nid = NID_hmacWithMD5; break;
+        case NID_sha224:                  prf_nid = NID_hmacWithSHA224; break;
+        case NID_sha256:                  prf_nid = NID_hmacWithSHA256; break;
+        case NID_sha384:                  prf_nid = NID_hmacWithSHA384; break;
+        case NID_sha512:                  prf_nid = NID_hmacWithSHA512; break;
+        case NID_id_GostR3411_94:         prf_nid = NID_id_HMACGostR3411_94; break;
+        case NID_id_GostR3411_2012_256:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_256; break;
+        case NID_id_GostR3411_2012_512:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_512; break;
+        case NID_sha3_224:                prf_nid = NID_hmac_sha3_224; break;
+        case NID_sha3_256:                prf_nid = NID_hmac_sha3_256; break;
+        case NID_sha3_384:                prf_nid = NID_hmac_sha3_384; break;
+        case NID_sha3_512:                prf_nid = NID_hmac_sha3_512; break;
+        case NID_sha512_224:              prf_nid = NID_hmacWithSHA512_224; break;
+        case NID_sha512_256:              prf_nid = NID_hmacWithSHA512_256; break;
+    }
+*/
+        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_sha256 /* FIXME */, pkcs12_pbmac1_key_gen)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
             return 0;
         }
@@ -366,18 +396,6 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
     OPENSSL_free(known_salt);
     return ret;
 }
-
-typedef struct {
-    X509_ALGOR *keyDerivationFunc;
-    X509_ALGOR *messageAuthScheme;
-} PBMAC1PARAM;
-
-ASN1_SEQUENCE(PBMAC1PARAM) = {
-        ASN1_SIMPLE(PBMAC1PARAM, keyDerivationFunc, X509_ALGOR),
-        ASN1_SIMPLE(PBMAC1PARAM, messageAuthScheme, X509_ALGOR)
-} ASN1_SEQUENCE_END(PBMAC1PARAM)
-
-IMPLEMENT_ASN1_FUNCTIONS(PBMAC1PARAM)
 
 static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
                             int nid, X509_ALGOR *alg, int hmac_nid)
