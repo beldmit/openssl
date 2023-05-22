@@ -71,7 +71,7 @@ typedef enum OPTION_choice {
     OPT_NAME, OPT_CSP, OPT_CANAME,
     OPT_IN, OPT_OUT, OPT_PASSIN, OPT_PASSOUT, OPT_PASSWORD, OPT_CAPATH,
     OPT_CAFILE, OPT_CASTORE, OPT_NOCAPATH, OPT_NOCAFILE, OPT_NOCASTORE, OPT_ENGINE,
-    OPT_R_ENUM, OPT_PROV_ENUM, OPT_PBMAC1,
+    OPT_R_ENUM, OPT_PROV_ENUM, OPT_PBMAC1, OPT_PBMAC1_KDF,
 #ifndef OPENSSL_NO_DES
     OPT_LEGACY_ALG
 #endif
@@ -149,6 +149,7 @@ const OPTIONS pkcs12_options[] = {
     {"macalg", OPT_MACALG, 's',
      "Digest algorithm to use in MAC (default SHA256)"},
     {"pbmac1", OPT_PBMAC1, '-', "Use PBMAC1 instead of MAC"},
+    {"pbmac1_kdf_md", OPT_PBMAC1_KDF, 's', "Digest to use for PBMAC1 KDF"},
     {"iter", OPT_ITER, 'p', "Specify the iteration count for encryption and MAC"},
     {"noiter", OPT_NOITER, '-', "Don't use encryption iteration"},
     {"nomaciter", OPT_NOMACITER, '-', "Don't use MAC iteration)"},
@@ -177,7 +178,7 @@ int pkcs12_main(int argc, char **argv)
     int ret = 1, macver = 1, add_lmk = 0, private = 0;
     int noprompt = 0;
     char *passinarg = NULL, *passoutarg = NULL, *passarg = NULL;
-    char *passin = NULL, *passout = NULL, *macalg = NULL;
+    char *passin = NULL, *passout = NULL, *macalg = NULL, *pbmac1_kdf_md = NULL;
     char *cpass = NULL, *mpass = NULL, *badpass = NULL;
     const char *CApath = NULL, *CAfile = NULL, *CAstore = NULL, *prog;
     int noCApath = 0, noCAfile = 0, noCAstore = 0;
@@ -280,6 +281,9 @@ int pkcs12_main(int argc, char **argv)
             break;
         case OPT_PBMAC1:
             pbmac1 = 1;
+            break;
+	case OPT_PBMAC1_KDF:
+            pbmac1_kdf_md = opt_arg();
             break;
         case OPT_CERTPBE:
             if (!set_pbe(&cert_pbe, opt_arg()))
@@ -721,7 +725,7 @@ int pkcs12_main(int argc, char **argv)
 
         if (maciter != -1) {
             if (pbmac1 == 1) {
-                if (!PKCS12_set_pbmac1(p12, mpass, -1, NULL, macsaltlen, maciter, macmd)) {
+                if (!PKCS12_set_pbmac1(p12, mpass, -1, NULL, macsaltlen, maciter, macmd, pbmac1_kdf_md)) {
                     BIO_printf(bio_err, "Error creating PBMAC1\n");
                     BIO_printf(bio_err, "Use -nomac if MAC not required.\n");
                     goto export_end;

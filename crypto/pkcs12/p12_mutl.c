@@ -216,7 +216,7 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
     if (OBJ_obj2nid(macoid) == NID_pbmac1) {
         PBMAC1PARAM *param = NULL;
-	int hmac_nid = NID_undef, md_nid = NID_undef;
+/*	int hmac_nid = NID_undef, md_nid = NID_undef; */
 
         param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
         if (param == NULL) {
@@ -304,6 +304,30 @@ static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
                            md_type, n, out);
 }
 
+static int pkcs12_mdnid2hmacnid(int mdnid)
+{
+    int hmac_nid = NID_undef;
+
+    switch(mdnid) {
+        case NID_sha1:                    hmac_nid = NID_hmacWithSHA1; break;
+        case NID_md5:                     hmac_nid = NID_hmacWithMD5; break;
+        case NID_sha224:                  hmac_nid = NID_hmacWithSHA224; break;
+        case NID_sha256:                  hmac_nid = NID_hmacWithSHA256; break;
+        case NID_sha384:                  hmac_nid = NID_hmacWithSHA384; break;
+        case NID_sha512:                  hmac_nid = NID_hmacWithSHA512; break;
+        case NID_id_GostR3411_94:         hmac_nid = NID_id_HMACGostR3411_94; break;
+        case NID_id_GostR3411_2012_256:   hmac_nid = NID_id_tc26_hmac_gost_3411_2012_256; break;
+        case NID_id_GostR3411_2012_512:   hmac_nid = NID_id_tc26_hmac_gost_3411_2012_512; break;
+        case NID_sha3_224:                hmac_nid = NID_hmac_sha3_224; break;
+        case NID_sha3_256:                hmac_nid = NID_hmac_sha3_256; break;
+        case NID_sha3_384:                hmac_nid = NID_hmac_sha3_384; break;
+        case NID_sha3_512:                hmac_nid = NID_hmac_sha3_512; break;
+        case NID_sha512_224:              hmac_nid = NID_hmacWithSHA512_224; break;
+        case NID_sha512_256:              hmac_nid = NID_hmacWithSHA512_256; break;
+    }
+
+    return hmac_nid;
+}
 /*
  * FIXME
  * For the test purpose we assume that
@@ -314,44 +338,35 @@ static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
  */
 int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
                    unsigned char *salt, int saltlen, int iter,
-                   const EVP_MD *md_type)
+                   const EVP_MD *md_type, const char *prf_md_name)
 {
     unsigned char mac[EVP_MAX_MD_SIZE];
     unsigned int maclen;
     ASN1_OCTET_STRING *macoct;
     X509_ALGOR *alg = NULL;
     int ret = 0;
-    int prf_nid = NID_undef;
+    int prf_md_nid = NID_undef, prf_nid = NID_undef, hmac_nid;
     unsigned char *known_salt = NULL;
     int keylen = 0;
 
     if (md_type == NULL)
         /* No need to do a fetch as the md_type is used only to get a NID */
         md_type = EVP_sha256();
+
+    if (prf_md_name == NULL)
+        prf_md_nid = EVP_MD_get_type(md_type);
+    else
+        prf_md_nid = OBJ_txt2nid(prf_md_name);
+
     if (iter == 0)
         iter = PKCS12_DEFAULT_ITER;
 
     keylen = EVP_MD_get_size(md_type);
 
-    switch(EVP_MD_get_type(md_type)) {
-        case NID_sha1:                    prf_nid = NID_hmacWithSHA1; break;
-        case NID_md5:                     prf_nid = NID_hmacWithMD5; break;
-        case NID_sha224:                  prf_nid = NID_hmacWithSHA224; break;
-        case NID_sha256:                  prf_nid = NID_hmacWithSHA256; break;
-        case NID_sha384:                  prf_nid = NID_hmacWithSHA384; break;
-        case NID_sha512:                  prf_nid = NID_hmacWithSHA512; break;
-        case NID_id_GostR3411_94:         prf_nid = NID_id_HMACGostR3411_94; break;
-        case NID_id_GostR3411_2012_256:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_256; break;
-        case NID_id_GostR3411_2012_512:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_512; break;
-        case NID_sha3_224:                prf_nid = NID_hmac_sha3_224; break;
-        case NID_sha3_256:                prf_nid = NID_hmac_sha3_256; break;
-        case NID_sha3_384:                prf_nid = NID_hmac_sha3_384; break;
-        case NID_sha3_512:                prf_nid = NID_hmac_sha3_512; break;
-        case NID_sha512_224:              prf_nid = NID_hmacWithSHA512_224; break;
-        case NID_sha512_256:              prf_nid = NID_hmacWithSHA512_256; break;
-    }
+    prf_nid  = pkcs12_mdnid2hmacnid(prf_md_nid);
+    hmac_nid = pkcs12_mdnid2hmacnid(EVP_MD_get_type(md_type));
 
-    if (prf_nid == NID_undef) {
+    if (prf_nid == NID_undef || hmac_nid == NID_undef) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_UNKNOWN_DIGEST_ALGORITHM);
         goto err;
     }
@@ -372,7 +387,7 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
 
     if ((alg == NULL) ||
         (pkcs12_setup_mac(p12, iter, salt ? salt : known_salt, saltlen,
-                          NID_pbmac1, alg, prf_nid) == PKCS12_ERROR)) {
+                          NID_pbmac1, alg, hmac_nid) == PKCS12_ERROR)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_SETUP_ERROR);
         goto err;
     }
