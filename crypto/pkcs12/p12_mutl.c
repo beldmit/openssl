@@ -216,33 +216,54 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
     if (OBJ_obj2nid(macoid) == NID_pbmac1) {
         PBMAC1PARAM *param = NULL;
-/*	int hmac_nid = NID_undef, md_nid = NID_undef; */
+	PBKDF2PARAM *pbkdf2_param = NULL;
+        const ASN1_OBJECT *kdf_oid, *kdf_hmac_oid, *hmac_oid;
+	int iter;
+	int keylength;
+	int md_nid = NID_undef;
 
         param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
         if (param == NULL) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             return 0;
         }
-/*
-    switch(EVP_MD_get_type(md_type)) {
-        case NID_sha1:                    prf_nid = NID_hmacWithSHA1; break;
-        case NID_md5:                     prf_nid = NID_hmacWithMD5; break;
-        case NID_sha224:                  prf_nid = NID_hmacWithSHA224; break;
-        case NID_sha256:                  prf_nid = NID_hmacWithSHA256; break;
-        case NID_sha384:                  prf_nid = NID_hmacWithSHA384; break;
-        case NID_sha512:                  prf_nid = NID_hmacWithSHA512; break;
-        case NID_id_GostR3411_94:         prf_nid = NID_id_HMACGostR3411_94; break;
-        case NID_id_GostR3411_2012_256:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_256; break;
-        case NID_id_GostR3411_2012_512:   prf_nid = NID_id_tc26_hmac_gost_3411_2012_512; break;
-        case NID_sha3_224:                prf_nid = NID_hmac_sha3_224; break;
-        case NID_sha3_256:                prf_nid = NID_hmac_sha3_256; break;
-        case NID_sha3_384:                prf_nid = NID_hmac_sha3_384; break;
-        case NID_sha3_512:                prf_nid = NID_hmac_sha3_512; break;
-        case NID_sha512_224:              prf_nid = NID_hmacWithSHA512_224; break;
-        case NID_sha512_256:              prf_nid = NID_hmacWithSHA512_256; break;
-    }
-*/
-        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_sha256 /* FIXME */, pkcs12_pbmac1_key_gen)) {
+/* From here it should go to pkcs12_get_mac */
+    	X509_ALGOR_get0(&kdf_oid, NULL, NULL, param->keyDerivationFunc);
+	if (OBJ_obj2nid(kdf_oid) != NID_id_pbkdf2) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+	}
+
+	pbkdf2_param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBKDF2PARAM), param->keyDerivationFunc->parameter);
+	if (pbkdf2_param == NULL) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+	}
+	iter = ASN1_INTEGER_get(pbkdf2_param->iter);
+	keylength = ASN1_INTEGER_get(pbkdf2_param->keylength);
+    	X509_ALGOR_get0(&kdf_hmac_oid, NULL, NULL, pbkdf2_param->prf);
+/* To here it should go to pkcs12_get_mac */
+
+    	X509_ALGOR_get0(&hmac_oid, NULL, NULL, param->messageAuthScheme);
+        switch(OBJ_obj2nid(hmac_oid)) {
+            case NID_hmacWithSHA1:                    md_nid = NID_sha1;                  break;
+            case NID_hmacWithMD5:                     md_nid = NID_md5;                   break;
+            case NID_hmacWithSHA224:                  md_nid = NID_sha224;                break;
+            case NID_hmacWithSHA256:                  md_nid = NID_sha256;                break;
+            case NID_hmacWithSHA384:                  md_nid = NID_sha384;                break;
+            case NID_hmacWithSHA512:                  md_nid = NID_sha512;                break;
+            case NID_id_HMACGostR3411_94:             md_nid = NID_id_GostR3411_94;       break;
+            case NID_id_tc26_hmac_gost_3411_2012_256: md_nid = NID_id_GostR3411_2012_256; break;
+            case NID_id_tc26_hmac_gost_3411_2012_512: md_nid = NID_id_GostR3411_2012_512; break;
+            case NID_hmac_sha3_224:                   md_nid = NID_sha3_224;              break;
+            case NID_hmac_sha3_256:                   md_nid = NID_sha3_256;              break;
+            case NID_hmac_sha3_384:                   md_nid = NID_sha3_384;              break;
+            case NID_hmac_sha3_512:                   md_nid = NID_sha3_512;              break;
+            case NID_hmacWithSHA512_224:              md_nid = NID_sha512_224;            break;
+            case NID_hmacWithSHA512_256:              md_nid = NID_sha512_256;            break;
+        }
+
+        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, md_nid, pkcs12_pbmac1_key_gen)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
             return 0;
         }
