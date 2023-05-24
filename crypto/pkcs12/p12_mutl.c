@@ -170,6 +170,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 	int iter;
 	int keylen;
 	const EVP_MD *kdf_md;
+	ASN1_OCTET_STRING *pbkdf2_salt;
 
         param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
         if (param == NULL) {
@@ -190,21 +191,22 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 	}
 	iter = ASN1_INTEGER_get(pbkdf2_param->iter);
 	keylen = ASN1_INTEGER_get(pbkdf2_param->keylength);
+	pbkdf2_salt = pbkdf2_param->salt->value.octet_string;
     	X509_ALGOR_get0(&kdf_hmac_oid, NULL, NULL, pbkdf2_param->prf);
 
 	kdf_md = EVP_MD_fetch(p12->authsafes->ctx.libctx,
 			OBJ_nid2sn(pkcs12_hmacnid2mdnid(OBJ_obj2nid(kdf_hmac_oid))),
 		       	p12->authsafes->ctx.propq);
 
-	if (PKCS5_PBKDF2_HMAC(pass, passlen, salt, saltlen, iter, kdf_md, keylen, key) <= 0) {
+	if (PKCS5_PBKDF2_HMAC(pass, passlen, pbkdf2_salt->data, pbkdf2_salt->length, iter, kdf_md, keylen, key) <= 0) {
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             return 0;
 	}
 	md_size = keylen;
 	hexdump(stderr, "pass", (unsigned char *)pass, passlen == -1 ? strlen(pass) : passlen);
-	hexdump(stderr, "salt", (unsigned char *)salt, saltlen);
+	hexdump(stderr, "salt", (unsigned char *)pbkdf2_salt->data, pbkdf2_salt->length);
 	fprintf(stderr, "iter: %d, md: %d\n", iter, EVP_MD_get_type(kdf_md));
-	hexdump(stderr, "Verification", key, keylen);
+	hexdump(stderr, "Verification key", key, keylen);
 
     } else if ((md_nid == NID_id_GostR3411_94
          || md_nid == NID_id_GostR3411_2012_256
@@ -234,7 +236,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 	hexdump(stderr, "pass", (unsigned char *)pass, passlen == -1 ? strlen(pass) : passlen);
 	hexdump(stderr, "salt", (unsigned char *)salt, saltlen);
 	fprintf(stderr, "iter: %d, md: %d\n", iter, EVP_MD_get_type(hmac_md));
-		hexdump(stderr, "Generation", key, md_size);
+		hexdump(stderr, "Generation key", key, md_size);
         } else {
             /* Default to UTF-8 password */
             if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
