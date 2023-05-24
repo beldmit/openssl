@@ -38,9 +38,10 @@ static int pkcs12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int salt
                             int nid, X509_ALGOR *alg, int hmac_nid);
 static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
                                  unsigned char *salt, int saltlen,
-                                 int id, int iter, int n,
+                                 int id, int iter, int keylen,
                                  unsigned char *out,
                                  const EVP_MD *md_type);
+static int pkcs12_hmacnid2mdnid(int hmac_nid);
 
 int PKCS12_mac_present(const PKCS12 *p12)
 {
@@ -93,10 +94,23 @@ static int pkcs12_gen_gost_mac_key(const char *pass, int passlen,
     return 1;
 }
 
+static void hexdump(FILE *f, const char *title, const unsigned char *s, int l)
+{
+    int n = 0;
+
+    fprintf(f, "%s", title);
+    for (; n < l; ++n) {
+        if ((n % 16) == 0)
+            fprintf(f, "\n%04x", n);
+        fprintf(f, " %02x", s[n]);
+    }
+    fprintf(f, "\n");
+}
+
 /* Generate a MAC */
 static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                           unsigned char *mac, unsigned int *maclen,
-                          int pbmac1_md_nid,
+                          int pbmac1_md_nid, int pbmac1_kdf_nid,
                           int (*pkcs12_key_gen)(const char *pass, int passlen,
                                                 unsigned char *salt, int slen,
                                                 int id, int iter, int n,
@@ -148,7 +162,51 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     md_nid = EVP_MD_get_type(md);
     if (md_size < 0)
         goto err;
-    if ((md_nid == NID_id_GostR3411_94
+
+    if (pbmac1_md_nid != NID_undef && pkcs12_key_gen == NULL /* Verification */) {
+        PBMAC1PARAM *param = NULL;
+	PBKDF2PARAM *pbkdf2_param = NULL;
+        const ASN1_OBJECT *kdf_oid, *kdf_hmac_oid;
+	int iter;
+	int keylen;
+	const EVP_MD *kdf_md;
+
+        param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
+        if (param == NULL) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+        }
+
+    	X509_ALGOR_get0(&kdf_oid, NULL, NULL, param->keyDerivationFunc);
+	if (OBJ_obj2nid(kdf_oid) != NID_id_pbkdf2) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+	}
+
+	pbkdf2_param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBKDF2PARAM), param->keyDerivationFunc->parameter);
+	if (pbkdf2_param == NULL) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+	}
+	iter = ASN1_INTEGER_get(pbkdf2_param->iter);
+	keylen = ASN1_INTEGER_get(pbkdf2_param->keylength);
+    	X509_ALGOR_get0(&kdf_hmac_oid, NULL, NULL, pbkdf2_param->prf);
+
+	kdf_md = EVP_MD_fetch(p12->authsafes->ctx.libctx,
+			OBJ_nid2sn(pkcs12_hmacnid2mdnid(OBJ_obj2nid(kdf_hmac_oid))),
+		       	p12->authsafes->ctx.propq);
+
+	if (PKCS5_PBKDF2_HMAC(pass, passlen, salt, saltlen, iter, kdf_md, keylen, key) <= 0) {
+            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+            return 0;
+	}
+	md_size = keylen;
+	hexdump(stderr, "pass", (unsigned char *)pass, passlen == -1 ? strlen(pass) : passlen);
+	hexdump(stderr, "salt", (unsigned char *)salt, saltlen);
+	fprintf(stderr, "iter: %d, md: %d\n", iter, EVP_MD_get_type(kdf_md));
+	hexdump(stderr, "Verification", key, keylen);
+
+    } else if ((md_nid == NID_id_GostR3411_94
          || md_nid == NID_id_GostR3411_2012_256
          || md_nid == NID_id_GostR3411_2012_512)
         && ossl_safe_getenv("LEGACY_GOST_PKCS12") == NULL) {
@@ -159,12 +217,24 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
             goto err;
         }
     } else {
+	const EVP_MD *hmac_md = md;
+	if (pbmac1_kdf_nid != NID_undef) {
+		char hmac_md_name[128];
+
+        	if (OBJ_obj2txt(hmac_md_name, sizeof(hmac_md_name), OBJ_nid2obj(pbmac1_kdf_nid), 0) < 0)
+            		return 0;
+		hmac_md = EVP_MD_fetch(NULL, hmac_md_name, NULL);
+	}
         if (pkcs12_key_gen != NULL) {
             if (!(*pkcs12_key_gen)(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
-                                   iter, md_size, key, md)) {
+                                   iter, md_size, key, hmac_md)) {
                 ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
                 goto err;
             }
+	hexdump(stderr, "pass", (unsigned char *)pass, passlen == -1 ? strlen(pass) : passlen);
+	hexdump(stderr, "salt", (unsigned char *)salt, saltlen);
+	fprintf(stderr, "iter: %d, md: %d\n", iter, EVP_MD_get_type(hmac_md));
+		hexdump(stderr, "Generation", key, md_size);
         } else {
             /* Default to UTF-8 password */
             if (!PKCS12_key_gen_utf8_ex(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
@@ -174,6 +244,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                 ERR_raise(ERR_LIB_PKCS12, PKCS12_R_KEY_GEN_ERROR);
                 goto err;
             }
+		hexdump(stderr, "Generation - no, not here", key, md_size);
         }
     }
     if ((hmac = HMAC_CTX_new()) == NULL
@@ -195,7 +266,32 @@ err:
 int PKCS12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                    unsigned char *mac, unsigned int *maclen)
 {
-    return pkcs12_gen_mac(p12, pass, passlen, mac, maclen, NID_undef, NULL);
+    return pkcs12_gen_mac(p12, pass, passlen, mac, maclen, NID_undef, NID_undef, NULL);
+}
+
+static int pkcs12_hmacnid2mdnid(int hmac_nid)
+{
+    int md_nid = NID_undef;
+
+    switch(hmac_nid) {
+        case NID_hmacWithSHA1:                    md_nid = NID_sha1;                  break;
+        case NID_hmacWithMD5:                     md_nid = NID_md5;                   break;
+        case NID_hmacWithSHA224:                  md_nid = NID_sha224;                break;
+        case NID_hmacWithSHA256:                  md_nid = NID_sha256;                break;
+        case NID_hmacWithSHA384:                  md_nid = NID_sha384;                break;
+        case NID_hmacWithSHA512:                  md_nid = NID_sha512;                break;
+        case NID_id_HMACGostR3411_94:             md_nid = NID_id_GostR3411_94;       break;
+        case NID_id_tc26_hmac_gost_3411_2012_256: md_nid = NID_id_GostR3411_2012_256; break;
+        case NID_id_tc26_hmac_gost_3411_2012_512: md_nid = NID_id_GostR3411_2012_512; break;
+        case NID_hmac_sha3_224:                   md_nid = NID_sha3_224;              break;
+        case NID_hmac_sha3_256:                   md_nid = NID_sha3_256;              break;
+        case NID_hmac_sha3_384:                   md_nid = NID_sha3_384;              break;
+        case NID_hmac_sha3_512:                   md_nid = NID_sha3_512;              break;
+        case NID_hmacWithSHA512_224:              md_nid = NID_sha512_224;            break;
+        case NID_hmacWithSHA512_256:              md_nid = NID_sha512_256;            break;
+    }
+
+    return md_nid;
 }
 
 /* Verify the mac */
@@ -216,10 +312,7 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
     if (OBJ_obj2nid(macoid) == NID_pbmac1) {
         PBMAC1PARAM *param = NULL;
-	PBKDF2PARAM *pbkdf2_param = NULL;
-        const ASN1_OBJECT *kdf_oid, *kdf_hmac_oid, *hmac_oid;
-	int iter;
-	int keylength;
+        const ASN1_OBJECT *hmac_oid;
 	int md_nid = NID_undef;
 
         param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBMAC1PARAM), macalg->parameter);
@@ -227,48 +320,15 @@ int PKCS12_verify_mac(PKCS12 *p12, const char *pass, int passlen)
             ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
             return 0;
         }
-/* From here it should go to pkcs12_get_mac */
-    	X509_ALGOR_get0(&kdf_oid, NULL, NULL, param->keyDerivationFunc);
-	if (OBJ_obj2nid(kdf_oid) != NID_id_pbkdf2) {
-            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
-            return 0;
-	}
-
-	pbkdf2_param = ASN1_TYPE_unpack_sequence(ASN1_ITEM_rptr(PBKDF2PARAM), param->keyDerivationFunc->parameter);
-	if (pbkdf2_param == NULL) {
-            ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
-            return 0;
-	}
-	iter = ASN1_INTEGER_get(pbkdf2_param->iter);
-	keylength = ASN1_INTEGER_get(pbkdf2_param->keylength);
-    	X509_ALGOR_get0(&kdf_hmac_oid, NULL, NULL, pbkdf2_param->prf);
-/* To here it should go to pkcs12_get_mac */
-
     	X509_ALGOR_get0(&hmac_oid, NULL, NULL, param->messageAuthScheme);
-        switch(OBJ_obj2nid(hmac_oid)) {
-            case NID_hmacWithSHA1:                    md_nid = NID_sha1;                  break;
-            case NID_hmacWithMD5:                     md_nid = NID_md5;                   break;
-            case NID_hmacWithSHA224:                  md_nid = NID_sha224;                break;
-            case NID_hmacWithSHA256:                  md_nid = NID_sha256;                break;
-            case NID_hmacWithSHA384:                  md_nid = NID_sha384;                break;
-            case NID_hmacWithSHA512:                  md_nid = NID_sha512;                break;
-            case NID_id_HMACGostR3411_94:             md_nid = NID_id_GostR3411_94;       break;
-            case NID_id_tc26_hmac_gost_3411_2012_256: md_nid = NID_id_GostR3411_2012_256; break;
-            case NID_id_tc26_hmac_gost_3411_2012_512: md_nid = NID_id_GostR3411_2012_512; break;
-            case NID_hmac_sha3_224:                   md_nid = NID_sha3_224;              break;
-            case NID_hmac_sha3_256:                   md_nid = NID_sha3_256;              break;
-            case NID_hmac_sha3_384:                   md_nid = NID_sha3_384;              break;
-            case NID_hmac_sha3_512:                   md_nid = NID_sha3_512;              break;
-            case NID_hmacWithSHA512_224:              md_nid = NID_sha512_224;            break;
-            case NID_hmacWithSHA512_256:              md_nid = NID_sha512_256;            break;
-        }
+	md_nid = pkcs12_hmacnid2mdnid(OBJ_obj2nid(hmac_oid));
 
-        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, md_nid, pkcs12_pbmac1_key_gen)) {
+        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, md_nid, NID_undef, NULL)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
             return 0;
         }
     } else {
-        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, NULL)) {
+        if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, NID_undef, NULL)) {
             ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
             return 0;
         }
@@ -303,7 +363,7 @@ int PKCS12_set_mac(PKCS12 *p12, const char *pass, int passlen,
     /*
      * Note that output mac is forced to UTF-8...
      */
-    if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, NULL)) {
+    if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen, NID_undef, NID_undef, NULL)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
         return 0;
     }
@@ -317,12 +377,12 @@ int PKCS12_set_mac(PKCS12 *p12, const char *pass, int passlen,
 
 static int pkcs12_pbmac1_key_gen(const char *pass, int passlen,
                                  unsigned char *salt, int saltlen,
-                                 int id, int iter, int n,
+                                 int id, int iter, int keylen,
                                  unsigned char *out,
                                  const EVP_MD *md_type)
 {
     return PKCS5_PBKDF2_HMAC(pass, passlen, salt, saltlen, iter,
-                           md_type, n, out);
+                           md_type, keylen, out);
 }
 
 static int pkcs12_mdnid2hmacnid(int mdnid)
@@ -353,7 +413,6 @@ static int pkcs12_mdnid2hmacnid(int mdnid)
  * FIXME
  * For the test purpose we assume that
  * 1. HMAC key len is equal to digest output len
- * 2. PBMAC1 uses the same digest for PBKDF2 and for mac itself
  *
  * Otherwise MAC keylen and algorithm should be passed like separate parameters
  */
@@ -416,7 +475,7 @@ int PKCS12_set_pbmac1(PKCS12 *p12, const char *pass, int passlen,
      * Note that output mac is forced to UTF-8...
      */
     if (!pkcs12_gen_mac(p12, pass, passlen, mac, &maclen,
-                        EVP_MD_get_type(md_type), pkcs12_pbmac1_key_gen)) {
+                        EVP_MD_get_type(md_type), prf_md_nid, pkcs12_pbmac1_key_gen)) {
         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_MAC_GENERATION_ERROR);
         goto err;
     }
