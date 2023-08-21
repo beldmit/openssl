@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
+#include "internal/sslconf.h"
 #include <openssl/conf.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -54,6 +55,18 @@ static int alg_module_init(CONF_IMODULE *md, const CONF *cnf)
         } else if (strcmp(oval->name, "default_properties") == 0) {
             if (!evp_set_default_properties_int(NCONF_get0_libctx((CONF *)cnf),
                         oval->value, 0, 0)) {
+                ERR_raise(ERR_LIB_EVP, EVP_R_SET_DEFAULT_PROPERTY_FAILURE);
+                return 0;
+            }
+        } else if (strcmp(oval->name, "rh-allow-sha1-signatures") == 0) {
+            int m;
+
+            /* Detailed error already reported. */
+            if (!X509V3_get_value_bool(oval, &m))
+                return 0;
+
+            if (!ossl_ctx_legacy_digest_signatures_allowed_set(
+                    NCONF_get0_libctx((CONF *)cnf), m > 0, 0)) {
                 ERR_raise(ERR_LIB_EVP, EVP_R_SET_DEFAULT_PROPERTY_FAILURE);
                 return 0;
             }
