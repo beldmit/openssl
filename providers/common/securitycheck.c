@@ -19,6 +19,7 @@
 #include <openssl/core_names.h>
 #include <openssl/obj_mac.h>
 #include "prov/securitycheck.h"
+#include "internal/sslconf.h"
 
 #define OSSL_FIPS_MIN_SECURITY_STRENGTH_BITS 112
 
@@ -219,3 +220,16 @@ int ossl_dh_check_key(const DH *dh)
     return (L == 2048 && (N == 224 || N == 256));
 }
 #endif /* OPENSSL_NO_DH */
+
+int rh_digest_signatures_allowed(OSSL_LIB_CTX *libctx, int mdnid)
+{
+#ifndef FIPS_MODULE
+    if (!ossl_ctx_legacy_digest_signatures_allowed(libctx, 0))
+        /* SHA1 is globally disabled, check whether we want to locally allow
+         * it. */
+#endif
+        if (mdnid == NID_sha1)
+            mdnid = -1;
+
+     return mdnid;
+}
