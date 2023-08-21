@@ -37,3 +37,5 @@ int ossl_digest_get_approved_nid(const EVP_MD *md);
 /* Functions that have different implementations for the FIPS_MODULE */
 int ossl_digest_rsa_sign_get_md_nid(const EVP_MD *md);
 int ossl_fips_config_securitycheck_enabled(OSSL_LIB_CTX *libctx);
+
+int rh_digest_signatures_allowed(OSSL_LIB_CTX *libctx, int mdnid);
