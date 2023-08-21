@@ -48,3 +48,11 @@ void ossl_release_default_drbg_ctx(void);
 #if defined(OPENSSL_THREADS)
 void ossl_threads_ctx_free(void *);
 #endif
+
+#ifndef OSSL_LEGACY_DIGEST_SIGNATURES_STRUCT
+#define OSSL_LEGACY_DIGEST_SIGNATURES_STRUCT
+typedef struct ossl_legacy_digest_signatures_st {
+    int allowed;
+} OSSL_LEGACY_DIGEST_SIGNATURES;
+#endif
+

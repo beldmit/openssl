@@ -15,6 +15,7 @@
 #include <openssl/obj_mac.h>
 #include "prov/securitycheck.h"
 #include "internal/nelem.h"
+#include "internal/sslconf.h"
 
 /* Disable the security checks in the default provider */
 int ossl_fips_config_securitycheck_enabled(OSSL_LIB_CTX *libctx)

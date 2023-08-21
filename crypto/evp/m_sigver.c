@@ -15,6 +15,7 @@
 #include "internal/provider.h"
 #include "internal/numbers.h" /* includes SIZE_MAX */
 #include "evp_local.h"
+#include "internal/sslconf.h"
 
 static int update(EVP_MD_CTX *ctx, const void *data, size_t datalen)
 {
@@ -251,6 +252,19 @@ reinitialize:
     }
 
     desc = signature->description != NULL ? signature->description : "";
+
+    if (ctx->reqdigest != NULL
+            && !EVP_PKEY_is_a(locpctx->pkey, SN_hmac)
+            && !EVP_PKEY_is_a(locpctx->pkey, SN_tls1_prf)
+            && !EVP_PKEY_is_a(locpctx->pkey, SN_hkdf)) {
+        int mdnid = EVP_MD_nid(ctx->reqdigest);
+        if (!ossl_ctx_legacy_digest_signatures_allowed(locpctx->libctx, 0)
+                && (mdnid == NID_sha1 || mdnid == NID_md5_sha1)) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_DIGEST);
+            goto err;
+        }
+    }
+
     if (ver) {
         if (signature->digest_verify_init == NULL) {
             ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_SIGNATURE_NOT_SUPPORTED,
