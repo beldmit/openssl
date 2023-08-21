@@ -315,6 +315,19 @@ Within the algorithm properties section, the following names have meaning:
 The value may be anything that is acceptable as a property query
 string for EVP_set_default_properties().
 
+=item B<rh-allow-sha1-signatures>
+
+The value is a boolean that can be B<yes> or B<no>.  If the value is not set,
+it behaves as if it was set to B<yes>.
+
+When set to B<no>, any attempt to create or verify a signature with a SHA1
+digest will fail.  To test whether your software will work with future versions
+of OpenSSL, set this option to B<no>.  This setting also affects TLS, where
+signature algorithms that use SHA1 as digest will no longer be supported if
+this option is set to B<no>.  Because TLS 1.1 or lower use MD5-SHA1 as
+pseudorandom function (PRF) to derive key material, disabling
+B<rh-allow-sha1-signatures> requires the use of TLS 1.2 or newer.
+
 =item B<fips_mode> (deprecated)
 
 The value is a boolean that can be B<yes> or B<no>.  If the value is
