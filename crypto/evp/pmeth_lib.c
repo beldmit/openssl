@@ -33,6 +33,7 @@
 #include "internal/ffc.h"
 #include "internal/numbers.h"
 #include "internal/provider.h"
+#include "internal/sslconf.h"
 #include "evp_local.h"
 
 #ifndef FIPS_MODULE
@@ -952,6 +953,20 @@ static int evp_pkey_ctx_set_md(EVP_PKEY_CTX *ctx, const EVP_MD *md,
         ERR_raise(ERR_LIB_EVP, EVP_R_COMMAND_NOT_SUPPORTED);
         /* Uses the same return values as EVP_PKEY_CTX_ctrl */
         return -2;
+    }
+
+    if (EVP_PKEY_CTX_IS_SIGNATURE_OP(ctx)
+            && md != NULL
+            && ctx->pkey != NULL
+            && !EVP_PKEY_is_a(ctx->pkey, SN_hmac)
+            && !EVP_PKEY_is_a(ctx->pkey, SN_tls1_prf)
+            && !EVP_PKEY_is_a(ctx->pkey, SN_hkdf)) {
+        int mdnid = EVP_MD_nid(md);
+        if ((mdnid == NID_sha1 || mdnid == NID_md5_sha1)
+                && !ossl_ctx_legacy_digest_signatures_allowed(ctx->libctx, 0)) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_DIGEST);
+            return -1;
+        }
     }
 
     if (fallback)
