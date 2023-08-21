@@ -21,6 +21,7 @@
 #include <openssl/bn.h>
 #include <openssl/provider.h>
 #include <openssl/param_build.h>
+#include "internal/sslconf.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
 #include "internal/tlsgroups.h"
@@ -2176,6 +2177,7 @@ int ssl_setup_sigalgs(SSL_CTX *ctx)
     EVP_PKEY *tmpkey = EVP_PKEY_new();
     int istls;
     int ret = 0;
+    int ldsigs_allowed;
 
     if (ctx == NULL)
         goto err;
@@ -2193,6 +2195,7 @@ int ssl_setup_sigalgs(SSL_CTX *ctx)
         goto err;
 
     ERR_set_mark();
+    ldsigs_allowed = ossl_ctx_legacy_digest_signatures_allowed(ctx->libctx, 0);
     /* First fill cache and tls12_sigalgs list from legacy algorithm list */
     for (i = 0, lu = sigalg_lookup_tbl;
          i < OSSL_NELEM(sigalg_lookup_tbl); lu++, i++) {
@@ -2210,6 +2213,11 @@ int ssl_setup_sigalgs(SSL_CTX *ctx)
          */
         if (lu->hash != NID_undef
                 && ctx->ssl_digest_methods[lu->hash_idx] == NULL) {
+            cache[i].available = 0;
+            continue;
+        }
+        if ((lu->hash == NID_sha1 || lu->hash == NID_md5_sha1)
+                && !ldsigs_allowed) {
             cache[i].available = 0;
             continue;
         }

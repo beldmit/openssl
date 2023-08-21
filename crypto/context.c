@@ -85,6 +85,8 @@ struct ossl_lib_ctx_st {
 #endif
     STACK_OF(SSL_COMP) *comp_methods;
 
+    void *legacy_digest_signatures;
+
     int ischild;
     int conf_diagnostics;
 };
@@ -117,6 +119,25 @@ int ossl_lib_ctx_is_child(OSSL_LIB_CTX *ctx)
     if (ctx == NULL)
         return 0;
     return ctx->ischild;
+}
+
+static void ossl_ctx_legacy_digest_signatures_free(void *vldsigs)
+{
+    OSSL_LEGACY_DIGEST_SIGNATURES *ldsigs = vldsigs;
+
+    if (ldsigs != NULL) {
+        OPENSSL_free(ldsigs);
+    }
+}
+
+static void *ossl_ctx_legacy_digest_signatures_new(OSSL_LIB_CTX *ctx)
+{
+    OSSL_LEGACY_DIGEST_SIGNATURES* ldsigs = OPENSSL_zalloc(sizeof(OSSL_LEGACY_DIGEST_SIGNATURES));
+    /* Warning: This patch differs from the same patch in CentOS and RHEL here,
+     * because the default on Fedora is to allow SHA-1 and support disabling
+     * it, while CentOS/RHEL disable it by default and allow enabling it. */
+    ldsigs->allowed = 0;
+    return ldsigs;
 }
 
 static void context_deinit_objs(OSSL_LIB_CTX *ctx);
@@ -234,6 +255,10 @@ static int context_init(OSSL_LIB_CTX *ctx)
     if (ctx->threads == NULL)
         goto err;
 #endif
+
+    ctx->legacy_digest_signatures = ossl_ctx_legacy_digest_signatures_new(ctx);
+    if (ctx->legacy_digest_signatures == NULL)
+        goto err;
 
     /* Low priority. */
 #ifndef FIPS_MODULE
@@ -381,6 +406,11 @@ static void context_deinit_objs(OSSL_LIB_CTX *ctx)
         ctx->threads = NULL;
     }
 #endif
+
+    if (ctx->legacy_digest_signatures != NULL) {
+        ossl_ctx_legacy_digest_signatures_free(ctx->legacy_digest_signatures);
+        ctx->legacy_digest_signatures = NULL;
+    }
 
     /* Low priority. */
 #ifndef FIPS_MODULE
@@ -660,6 +690,9 @@ void *ossl_lib_ctx_get_data(OSSL_LIB_CTX *ctx, int index)
     case OSSL_LIB_CTX_COMP_METHODS:
         return (void *)&ctx->comp_methods;
 
+    case OSSL_LIB_CTX_LEGACY_DIGEST_SIGNATURES_INDEX:
+        return ctx->legacy_digest_signatures;
+
     default:
         return NULL;
     }
@@ -713,4 +746,47 @@ void OSSL_LIB_CTX_set_conf_diagnostics(OSSL_LIB_CTX *libctx, int value)
     if (libctx == NULL)
         return;
     libctx->conf_diagnostics = value;
+}
+
+static OSSL_LEGACY_DIGEST_SIGNATURES *ossl_ctx_legacy_digest_signatures(
+        OSSL_LIB_CTX *libctx, int loadconfig)
+{
+#ifndef FIPS_MODULE
+    if (loadconfig && !OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL))
+        return NULL;
+#endif
+
+    return ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_LEGACY_DIGEST_SIGNATURES_INDEX);
+}
+
+int ossl_ctx_legacy_digest_signatures_allowed(OSSL_LIB_CTX *libctx, int loadconfig)
+{
+    OSSL_LEGACY_DIGEST_SIGNATURES *ldsigs
+        = ossl_ctx_legacy_digest_signatures(libctx, loadconfig);
+
+ #ifndef FIPS_MODULE
+     if (ossl_safe_getenv("OPENSSL_ENABLE_SHA1_SIGNATURES") != NULL)
+        /* used in tests */
+         return 1;
+ #endif
+
+    /* Warning: This patch differs from the same patch in CentOS and RHEL here,
+     * because the default on Fedora is to allow SHA-1 and support disabling
+     * it, while CentOS/RHEL disable it by default and allow enabling it. */
+    return ldsigs != NULL ? ldsigs->allowed : 0;
+}
+
+int ossl_ctx_legacy_digest_signatures_allowed_set(OSSL_LIB_CTX *libctx, int allow,
+                                                  int loadconfig)
+{
+    OSSL_LEGACY_DIGEST_SIGNATURES *ldsigs
+        = ossl_ctx_legacy_digest_signatures(libctx, loadconfig);
+
+    if (ldsigs == NULL) {
+        ERR_raise(ERR_LIB_EVP, ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+
+    ldsigs->allowed = allow;
+    return 1;
 }

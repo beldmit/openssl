@@ -197,13 +197,16 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx,
         goto err;
     }
     md_nid = ossl_digest_get_approved_nid(md);
+
 #ifdef FIPS_MODULE
-    if (md_nid == NID_undef) {
+    md_nid = rh_digest_signatures_allowed(ctx->libctx, md_nid);
+    if (md_nid <= 0) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
                        "digest=%s", mdname);
         goto err;
     }
 #endif
+
     /* XOF digests don't work */
     if (EVP_MD_xof(md)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_XOF_DIGESTS_NOT_ALLOWED);

@@ -26,6 +26,7 @@
 #include "internal/cryptlib.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
+#include "internal/sslconf.h"
 #include "crypto/rsa.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
@@ -34,6 +35,7 @@
 #include "prov/securitycheck.h"
 
 #define RSA_DEFAULT_DIGEST_NAME OSSL_DIGEST_NAME_SHA1
+#define RSA_DEFAULT_DIGEST_NAME_NONLEGACY OSSL_DIGEST_NAME_SHA2_256
 
 static OSSL_FUNC_signature_newctx_fn rsa_newctx;
 static OSSL_FUNC_signature_sign_init_fn rsa_sign_init;
@@ -387,7 +389,8 @@ static int rsa_setup_md(PROV_RSA_CTX *ctx, const char *mdname,
             goto err;
         }
         md_nid = ossl_digest_rsa_sign_get_md_nid(md);
-        if (md_nid == NID_undef) {
+        md_nid = rh_digest_signatures_allowed(ctx->libctx, md_nid);
+        if (md_nid <= 0) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
                            "digest=%s", mdname);
             goto err;
@@ -475,8 +478,9 @@ static int rsa_setup_mgf1_md(PROV_RSA_CTX *ctx, const char *mdname,
                        "%s could not be fetched", mdname);
         return 0;
     }
-    /* The default for mgf1 is SHA1 - so allow SHA1 */
+    /* The default for mgf1 is SHA1 - so check if we allow SHA1 */
     if ((mdnid = ossl_digest_rsa_sign_get_md_nid(md)) <= 0
+        || (mdnid = rh_digest_signatures_allowed(ctx->libctx, mdnid)) <= 0
         || !rsa_check_padding(ctx, NULL, mdname, mdnid)) {
         if (mdnid <= 0)
             ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
@@ -1765,8 +1769,13 @@ static int rsa_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
     prsactx->pad_mode = pad_mode;
 
     if (prsactx->md == NULL && pmdname == NULL
-        && pad_mode == RSA_PKCS1_PSS_PADDING)
-        pmdname = RSA_DEFAULT_DIGEST_NAME;
+        && pad_mode == RSA_PKCS1_PSS_PADDING) {
+        if (ossl_ctx_legacy_digest_signatures_allowed(prsactx->libctx, 0)) {
+            pmdname = RSA_DEFAULT_DIGEST_NAME;
+        } else {
+            pmdname = RSA_DEFAULT_DIGEST_NAME_NONLEGACY;
+        }
+    }
 
     if (pmgf1mdname != NULL
         && !rsa_setup_mgf1_md(prsactx, pmgf1mdname, pmgf1mdprops))
