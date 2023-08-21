@@ -41,4 +41,8 @@ const SSL_CONF_CMD *conf_ssl_get(CONF_IMODULE *m, size_t idx, const char **name,
 int conf_ssl_name_find(CONF_IMODULE *m, const char *name, size_t *idx);
 void conf_ssl_get_cmd(const SSL_CONF_CMD *c, size_t idx, char **cmd, char **arg);
 
+/* Methods to support disabling all signatures with legacy digests */
+int ossl_ctx_legacy_digest_signatures_allowed(OSSL_LIB_CTX *libctx, int loadconfig);
+int ossl_ctx_legacy_digest_signatures_allowed_set(OSSL_LIB_CTX *libctx, int allow,
+                                                  int loadconfig);
 #endif
