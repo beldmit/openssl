@@ -5928,3 +5928,5 @@ OSSL_AA_DIST_POINT_free                 6051	3_5_0	EXIST::FUNCTION:
 OSSL_AA_DIST_POINT_new                  6052	3_5_0	EXIST::FUNCTION:
 OSSL_AA_DIST_POINT_it                   6053	3_5_0	EXIST::FUNCTION:
 PEM_ASN1_write_bio_ctx                  6054	3_5_0	EXIST::FUNCTION:
+ossl_ctx_legacy_digest_signatures_allowed ?	3_0_1	EXIST::FUNCTION:
+ossl_ctx_legacy_digest_signatures_allowed_set ?	3_0_1	EXIST::FUNCTION:

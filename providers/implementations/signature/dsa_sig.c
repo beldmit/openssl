@@ -163,6 +163,7 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
 
         md = EVP_MD_fetch(ctx->libctx, mdname, mdprops);
         md_nid = ossl_digest_get_approved_nid(md);
+        md_nid = rh_digest_signatures_allowed(ctx->libctx, md_nid);
 
         if (md == NULL) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_INVALID_DIGEST,
