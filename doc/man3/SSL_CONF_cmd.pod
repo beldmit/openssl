@@ -621,6 +621,9 @@ B<ExtendedMasterSecret>: use extended master secret extension, enabled by
 default. Inverse of B<SSL_OP_NO_EXTENDED_MASTER_SECRET>: that is,
 B<-ExtendedMasterSecret> is the same as setting B<SSL_OP_NO_EXTENDED_MASTER_SECRET>.
 
+B<RHNoEnforceEMSinFIPS>: allow establishing connections without EMS in FIPS mode.
+This is a RedHat-based OS specific option, and normally it should be set up via crypto policies.
+
 B<CANames>: use CA names extension, enabled by
 default. Inverse of B<SSL_OP_DISABLE_TLSEXT_CA_NAMES>: that is,
 B<-CANames> is the same as setting B<SSL_OP_DISABLE_TLSEXT_CA_NAMES>.
