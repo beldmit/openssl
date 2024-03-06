@@ -57,13 +57,15 @@ int DH_check_params(const DH *dh, int *ret)
     nid = DH_get_nid((DH *)dh);
     if (nid != NID_undef)
         return 1;
+
     /*
-     * OR
-     * (2b) FFC domain params conform to FIPS-186-4 explicit domain param
-     * validity tests.
+     * FIPS 186-4 explicit domain parameters are no longer supported in FIPS mode.
      */
-    return ossl_ffc_params_FIPS186_4_validate(dh->libctx, &dh->params,
-                                              FFC_PARAM_TYPE_DH, ret, NULL);
+    ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+                   "FIPS 186-4 type domain parameters no longer allowed in"
+                   " FIPS mode, since the required validation routines were"
+                   " removed from FIPS 186-5");
+    return 0;
 }
 #else
 int DH_check_params(const DH *dh, int *ret)
