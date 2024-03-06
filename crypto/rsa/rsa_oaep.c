@@ -77,6 +77,14 @@ int ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(OSSL_LIB_CTX *libctx,
         mgf1md = md;
 
 #ifdef FIPS_MODULE
+    if (EVP_MD_is_a(md, "SHAKE-128") || EVP_MD_is_a(md, "SHAKE-256") ||
+        EVP_MD_is_a(mgf1md, "SHAKE-128") || EVP_MD_is_a(mgf1md, "SHAKE-256")) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_DIGEST_NOT_ALLOWED);
+        return 0;
+    }
+#endif
+
+#ifdef FIPS_MODULE
     /* XOF are approved as standalone; Shake256 in Ed448; MGF */
     if (EVP_MD_xof(md)) {
         ERR_raise(ERR_LIB_RSA, RSA_R_DIGEST_NOT_ALLOWED);
@@ -193,6 +201,14 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 
     if (mgf1md == NULL)
         mgf1md = md;
+
+#ifdef FIPS_MODULE
+    if (EVP_MD_is_a(md, "SHAKE-128") || EVP_MD_is_a(md, "SHAKE-256") ||
+        EVP_MD_is_a(mgf1md, "SHAKE-128") || EVP_MD_is_a(mgf1md, "SHAKE-256")) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_DIGEST_NOT_ALLOWED);
+        return -1;
+    }
+#endif
 
 #ifdef FIPS_MODULE
     /* XOF are approved as standalone; Shake256 in Ed448; MGF */
