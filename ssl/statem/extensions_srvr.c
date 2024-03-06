@@ -16,6 +16,7 @@
 #include <openssl/rand.h>
 #include <openssl/trace.h>
 #endif
+#include <openssl/fips.h>
 
 #define COOKIE_STATE_FORMAT_VERSION 1
 
@@ -1897,8 +1898,13 @@ EXT_RETURN tls_construct_stoc_ems(SSL_CONNECTION *s, WPACKET *pkt,
     unsigned int context,
     X509 *x, size_t chainidx)
 {
-    if ((s->s3.flags & TLS1_FLAGS_RECEIVED_EXTMS) == 0)
+    if ((s->s3.flags & TLS1_FLAGS_RECEIVED_EXTMS) == 0) {
+        if (FIPS_mode() && !(SSL_get_options(SSL_CONNECTION_GET_SSL(s)) & SSL_OP_RH_PERMIT_NOEMS_FIPS) ) {
+            SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, ERR_R_UNSUPPORTED);
+            return EXT_RETURN_FAIL;
+        }
         return EXT_RETURN_NOT_SENT;
+    }
 
     if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_extended_master_secret)
         || !WPACKET_put_bytes_u16(pkt, 0)) {
