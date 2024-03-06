@@ -462,6 +462,9 @@ sub testssl {
                'test sslv2/sslv3 with 1024bit DHE via BIO pair');
           }
 
+        SKIP: {
+          skip "SSLv3 is not supported by the FIPS provider", 4
+              if $provider eq "fips";
           ok(run(test([@ssltest, "-bio_pair", "-server_auth", @CA])),
              'test sslv2/sslv3 with server authentication');
           ok(run(test([@ssltest, "-bio_pair", "-client_auth", @CA])),
@@ -470,6 +473,7 @@ sub testssl {
              'test sslv2/sslv3 with both client and server authentication via BIO pair');
           ok(run(test([@ssltest, "-bio_pair", "-server_auth", "-client_auth", "-app_verify", @CA])),
              'test sslv2/sslv3 with both client and server authentication via BIO pair and app verify');
+         }
 
         SKIP: {
             skip "No IPv4 available on this machine", 4
