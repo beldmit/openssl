@@ -188,7 +188,7 @@ my @smime_pkcs7_tests = (
       [ "{cmd1}", @defaultprov, "-sign", "-in", $smcont, "-md", "sha1",
         "-certfile", $smroot,
         "-signer", $smrsa1, "-out", "{output}.cms" ],
-      [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
+      [ "{cmd2}", @defaultprov, "-verify", "-in", "{output}.cms",
         "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&final_compare
     ],
@@ -196,7 +196,7 @@ my @smime_pkcs7_tests = (
     [ "signed zero-length content S/MIME format, RSA key SHA1",
       [ "{cmd1}", @defaultprov, "-sign", "-in", $smcont_zero, "-md", "sha1",
         "-certfile", $smroot, "-signer", $smrsa1, "-out", "{output}.cms" ],
-      [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms",
+      [ "{cmd2}", @defaultprov, "-verify", "-in", "{output}.cms",
         "-CAfile", $smroot, "-out", "{output}.txt" ],
       \&zero_compare
     ],
