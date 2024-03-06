@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#define _GNU_SOURCE /* needed for secure_getenv */
 #include "crypto/cryptlib.h"
 #include <openssl/conf.h>
 #include <openssl/trace.h>
@@ -18,6 +19,38 @@
 #include "internal/provider.h"
 #include "crypto/decoder.h"
 #include "crypto/context.h"
+
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <fcntl.h>
+# include <unistd.h>
+# include <openssl/evp.h>
+
+# define FIPS_MODE_SWITCH_FILE "/proc/sys/crypto/fips_enabled"
+
+static int kernel_fips_flag;
+
+static void read_kernel_fips_flag(void)
+{
+    char buf[2] = "0";
+    int fd;
+
+    if (secure_getenv("OPENSSL_FORCE_FIPS_MODE") != NULL) {
+        buf[0] = '1';
+    } else if ((fd = open(FIPS_MODE_SWITCH_FILE, O_RDONLY)) >= 0) {
+        while (read(fd, buf, sizeof(buf)) < 0 && errno == EINTR) ;
+        close(fd);
+    }
+
+    if (buf[0] == '1') {
+        kernel_fips_flag = 1;
+    }
+}
+
+int ossl_get_kernel_fips_flag()
+{
+    return kernel_fips_flag;
+}
 
 struct ossl_lib_ctx_st {
     CRYPTO_RWLOCK *lock;
@@ -393,6 +426,8 @@ static int default_context_inited = 0;
 
 DEFINE_RUN_ONCE_STATIC(default_context_do_init)
 {
+    read_kernel_fips_flag();
+
     if (!CRYPTO_THREAD_init_local(&default_context_thread_local, NULL))
         goto err;
 

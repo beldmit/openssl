@@ -111,6 +111,9 @@ int ossl_provider_init_as_child(OSSL_LIB_CTX *ctx,
                                 const OSSL_DISPATCH *in);
 void ossl_provider_deinit_child(OSSL_LIB_CTX *ctx);
 
+/* FIPS flag access */
+int ossl_get_kernel_fips_flag(void);
+
 # ifdef __cplusplus
 }
 # endif
