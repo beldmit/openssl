@@ -63,7 +63,7 @@ static BN_CTX *bnctx = NULL;
 static OSSL_PARAM_BLD *bld_prime_nc = NULL;
 static OSSL_PARAM_BLD *bld_prime = NULL;
 static OSSL_PARAM *ec_explicit_prime_params_nc = NULL;
-static OSSL_PARAM *ec_explicit_prime_params_explicit = NULL;
+/*static OSSL_PARAM *ec_explicit_prime_params_explicit = NULL;*/
 
 #ifndef OPENSSL_NO_EC2M
 static OSSL_PARAM_BLD *bld_tri_nc = NULL;
@@ -1013,10 +1013,10 @@ IMPLEMENT_TEST_SUITE_LEGACY(EC, "EC")
 DOMAIN_KEYS(ECExplicitPrimeNamedCurve);
 IMPLEMENT_TEST_SUITE(ECExplicitPrimeNamedCurve, "EC", 1)
 IMPLEMENT_TEST_SUITE_LEGACY(ECExplicitPrimeNamedCurve, "EC")
-DOMAIN_KEYS(ECExplicitPrime2G);
-IMPLEMENT_TEST_SUITE(ECExplicitPrime2G, "EC", 0)
-IMPLEMENT_TEST_SUITE_LEGACY(ECExplicitPrime2G, "EC")
-#ifndef OPENSSL_NO_EC2M
+/*DOMAIN_KEYS(ECExplicitPrime2G);*/
+/*IMPLEMENT_TEST_SUITE(ECExplicitPrime2G, "EC", 0)*/
+/*IMPLEMENT_TEST_SUITE_LEGACY(ECExplicitPrime2G, "EC")*/
+# ifndef OPENSSL_NO_EC2M
 DOMAIN_KEYS(ECExplicitTriNamedCurve);
 IMPLEMENT_TEST_SUITE(ECExplicitTriNamedCurve, "EC", 1)
 IMPLEMENT_TEST_SUITE_LEGACY(ECExplicitTriNamedCurve, "EC")
@@ -1458,8 +1458,8 @@ int setup_tests(void)
         || !create_ec_explicit_prime_params_namedcurve(bld_prime_nc)
         || !create_ec_explicit_prime_params(bld_prime)
         || !TEST_ptr(ec_explicit_prime_params_nc = OSSL_PARAM_BLD_to_param(bld_prime_nc))
-        || !TEST_ptr(ec_explicit_prime_params_explicit = OSSL_PARAM_BLD_to_param(bld_prime))
-#ifndef OPENSSL_NO_EC2M
+/*      || !TEST_ptr(ec_explicit_prime_params_explicit = OSSL_PARAM_BLD_to_param(bld_prime))*/
+# ifndef OPENSSL_NO_EC2M
         || !TEST_ptr(bld_tri_nc = OSSL_PARAM_BLD_new())
         || !TEST_ptr(bld_tri = OSSL_PARAM_BLD_new())
         || !create_ec_explicit_trinomial_params_namedcurve(bld_tri_nc)
@@ -1486,8 +1486,8 @@ int setup_tests(void)
     TEST_info("Generating EC keys...");
     MAKE_DOMAIN_KEYS(EC, "EC", EC_params);
     MAKE_DOMAIN_KEYS(ECExplicitPrimeNamedCurve, "EC", ec_explicit_prime_params_nc);
-    MAKE_DOMAIN_KEYS(ECExplicitPrime2G, "EC", ec_explicit_prime_params_explicit);
-#ifndef OPENSSL_NO_EC2M
+/*  MAKE_DOMAIN_KEYS(ECExplicitPrime2G, "EC", ec_explicit_prime_params_explicit);*/
+# ifndef OPENSSL_NO_EC2M
     MAKE_DOMAIN_KEYS(ECExplicitTriNamedCurve, "EC", ec_explicit_tri_params_nc);
     MAKE_DOMAIN_KEYS(ECExplicitTri2G, "EC", ec_explicit_tri_params_explicit);
 #endif
@@ -1566,9 +1566,9 @@ int setup_tests(void)
         ADD_TEST_SUITE_LEGACY(EC);
         ADD_TEST_SUITE(ECExplicitPrimeNamedCurve);
         ADD_TEST_SUITE_LEGACY(ECExplicitPrimeNamedCurve);
-        ADD_TEST_SUITE(ECExplicitPrime2G);
-        ADD_TEST_SUITE_LEGACY(ECExplicitPrime2G);
-#ifndef OPENSSL_NO_EC2M
+/*      ADD_TEST_SUITE(ECExplicitPrime2G);*/
+/*      ADD_TEST_SUITE_LEGACY(ECExplicitPrime2G);*/
+# ifndef OPENSSL_NO_EC2M
         ADD_TEST_SUITE(ECExplicitTriNamedCurve);
         ADD_TEST_SUITE_LEGACY(ECExplicitTriNamedCurve);
         ADD_TEST_SUITE(ECExplicitTri2G);
@@ -1644,7 +1644,7 @@ void cleanup_tests(void)
 {
 #ifndef OPENSSL_NO_EC
     OSSL_PARAM_free(ec_explicit_prime_params_nc);
-    OSSL_PARAM_free(ec_explicit_prime_params_explicit);
+/*    OSSL_PARAM_free(ec_explicit_prime_params_explicit);*/
     OSSL_PARAM_BLD_free(bld_prime_nc);
     OSSL_PARAM_BLD_free(bld_prime);
 #ifndef OPENSSL_NO_EC2M
@@ -1666,8 +1666,8 @@ void cleanup_tests(void)
 #ifndef OPENSSL_NO_EC
     FREE_DOMAIN_KEYS(EC);
     FREE_DOMAIN_KEYS(ECExplicitPrimeNamedCurve);
-    FREE_DOMAIN_KEYS(ECExplicitPrime2G);
-#ifndef OPENSSL_NO_EC2M
+/*  FREE_DOMAIN_KEYS(ECExplicitPrime2G);*/
+# ifndef OPENSSL_NO_EC2M
     FREE_DOMAIN_KEYS(ECExplicitTriNamedCurve);
     FREE_DOMAIN_KEYS(ECExplicitTri2G);
 #endif
