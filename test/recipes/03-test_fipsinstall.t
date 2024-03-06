@@ -22,6 +22,8 @@ use lib srctop_dir('Configurations');
 use lib bldtop_dir('.');
 use platform;
 
+plan skip_all => "Fipsinstall not available in Red Hat FIPS build";
+
 plan skip_all => "Test only supported in a fips build" if disabled("fips");
 
 # Compatible options for pedantic FIPS compliance

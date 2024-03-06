@@ -139,10 +139,6 @@ Engine (loadable module) information and manipulation.
 
 Error Number to Error String Conversion.
 
-=item B<fipsinstall>
-
-FIPS configuration installation.
-
 =item B<gendsa>
 
 Generation of DSA Private Key from Parameters. Superseded by
