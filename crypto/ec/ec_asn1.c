@@ -901,6 +901,12 @@ EC_GROUP *d2i_ECPKParameters(EC_GROUP **a, const unsigned char **in, long len)
     if (params->type == ECPKPARAMETERS_TYPE_EXPLICIT)
         group->decoded_from_explicit_params = 1;
 
+    if (EC_GROUP_check_named_curve(group, 0, NULL) == NID_undef) {
+        EC_GROUP_free(group);
+        ECPKPARAMETERS_free(params);
+        return NULL;
+    }
+
     if (a) {
         EC_GROUP_free(*a);
         *a = group;
@@ -957,6 +963,11 @@ EC_KEY *d2i_ECPrivateKey(EC_KEY **a, const unsigned char **in, long len)
 
     if (ret->group == NULL) {
         ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+        goto err;
+    }
+
+    if (EC_GROUP_check_named_curve(ret->group, 0, NULL) == NID_undef) {
+        ERR_raise(ERR_LIB_EC, EC_R_UNKNOWN_GROUP);
         goto err;
     }
 
