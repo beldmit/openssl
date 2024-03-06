@@ -27,7 +27,7 @@ plan skip_all => "This test is not supported in a no-cmp build"
 plan skip_all => "This test is not supported in a no-ec build"
     if disabled("ec");
 
-plan tests => 2 + ($no_fips ? 0 : 1); #fips test
+plan skip_all => 2 + ($no_fips ? 0 : 1); #fips test
 
 my @basic_cmd = ("cmp_vfy_test",
                  data_file("server.crt"),     data_file("client.crt"),

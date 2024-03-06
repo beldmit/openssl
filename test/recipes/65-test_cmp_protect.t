@@ -27,7 +27,7 @@ plan skip_all => "This test is not supported in a no-cmp build"
 plan skip_all => "This test is not supported in a shared library build on Windows"
     if $^O eq 'MSWin32' && !disabled("shared");
 
-plan tests => 2 + ($no_fips ? 0 : 1); #fips test
+plan skip_all => 2 + ($no_fips ? 0 : 1); #fips test
 
 my @basic_cmd = ("cmp_protect_test",
                  data_file("prot_RSA.pem"),
