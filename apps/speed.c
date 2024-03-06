@@ -405,7 +405,7 @@ static double ffdh_results[FFDH_NUM][1];  /* 1 op: derivation */
 #endif /* OPENSSL_NO_DH */
 
 enum ec_curves_t {
-    R_EC_P160, R_EC_P192, R_EC_P224, R_EC_P256, R_EC_P384, R_EC_P521,
+    R_EC_P224, R_EC_P256, R_EC_P384, R_EC_P521,
 #ifndef OPENSSL_NO_EC2M
     R_EC_K163, R_EC_K233, R_EC_K283, R_EC_K409, R_EC_K571,
     R_EC_B163, R_EC_B233, R_EC_B283, R_EC_B409, R_EC_B571,
@@ -415,8 +415,6 @@ enum ec_curves_t {
 };
 /* list of ecdsa curves */
 static const OPT_PAIR ecdsa_choices[ECDSA_NUM] = {
-    {"ecdsap160", R_EC_P160},
-    {"ecdsap192", R_EC_P192},
     {"ecdsap224", R_EC_P224},
     {"ecdsap256", R_EC_P256},
     {"ecdsap384", R_EC_P384},
@@ -449,8 +447,6 @@ enum {
 };
 /* list of ecdh curves, extension of |ecdsa_choices| list above */
 static const OPT_PAIR ecdh_choices[EC_NUM] = {
-    {"ecdhp160", R_EC_P160},
-    {"ecdhp192", R_EC_P192},
     {"ecdhp224", R_EC_P224},
     {"ecdhp256", R_EC_P256},
     {"ecdhp384", R_EC_P384},
@@ -1966,8 +1962,6 @@ int speed_main(int argc, char **argv)
      */
     static const EC_CURVE ec_curves[EC_NUM] = {
         /* Prime Curves */
-        {"secp160r1", NID_secp160r1, 160},
-        {"nistp192", NID_X9_62_prime192v1, 192},
         {"nistp224", NID_secp224r1, 224},
         {"nistp256", NID_X9_62_prime256v1, 256},
         {"nistp384", NID_secp384r1, 384},
