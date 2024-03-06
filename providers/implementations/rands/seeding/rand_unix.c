@@ -53,6 +53,8 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <sys/time.h>
+# include <sys/random.h>
+# include <openssl/evp.h>
 
 static uint64_t get_time_stamp(void);
 
@@ -339,70 +341,8 @@ static ssize_t syscall_random(void *buf, size_t buflen)
      * which is way below the OSSL_SSIZE_MAX limit. Therefore sign conversion
      * between size_t and ssize_t is safe even without a range check.
      */
-
-    /*
-     * Do runtime detection to find getentropy().
-     *
-     * Known OSs that should support this:
-     * - Darwin since 16 (OSX 10.12, IOS 10.0).
-     * - Solaris since 11.3
-     * - OpenBSD since 5.6
-     * - Linux since 3.17 with glibc 2.25
-     *
-     * Note: Sometimes getentropy() can be provided but not implemented
-     * internally. So we need to check errno for ENOSYS
-     */
-#  if !defined(__DragonFly__) && !defined(__NetBSD__) && !defined(__FreeBSD__)
-#    if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
-    extern int getentropy(void *buffer, size_t length) __attribute__((weak));
-
-    if (getentropy != NULL) {
-        if (getentropy(buf, buflen) == 0)
-            return (ssize_t)buflen;
-        if (errno != ENOSYS)
-            return -1;
-    }
-#    elif defined(OPENSSL_APPLE_CRYPTO_RANDOM)
-
-    if (CCRandomGenerateBytes(buf, buflen) == kCCSuccess)
-	    return (ssize_t)buflen;
-
-    return -1;
-#    else
-    union {
-        void *p;
-        int (*f)(void *buffer, size_t length);
-    } p_getentropy;
-
-    /*
-     * We could cache the result of the lookup, but we normally don't
-     * call this function often.
-     */
-    ERR_set_mark();
-    p_getentropy.p = DSO_global_lookup("getentropy");
-    ERR_pop_to_mark();
-    if (p_getentropy.p != NULL)
-        return p_getentropy.f(buf, buflen) == 0 ? (ssize_t)buflen : -1;
-#    endif
-#  endif /* !__DragonFly__ && !__NetBSD__ && !__FreeBSD__ */
-
-    /* Linux supports this since version 3.17 */
-#  if defined(__linux) && defined(__NR_getrandom)
-    return syscall(__NR_getrandom, buf, buflen, 0);
-#  elif (defined(__DragonFly__)  && __DragonFly_version >= 500700) \
-     || (defined(__NetBSD__) && __NetBSD_Version >= 1000000000) \
-     || (defined(__FreeBSD__) && __FreeBSD_version >= 1200061)
-    return getrandom(buf, buflen, 0);
-#  elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
-    return sysctl_random(buf, buflen);
-#  elif defined(__wasi__)
-    if (getentropy(buf, buflen) == 0)
-      return (ssize_t)buflen;
-    return -1;
-#  else
-    errno = ENOSYS;
-    return -1;
-#  endif
+    /* Red Hat uses downstream patch to always seed from getrandom() */
+    return EVP_default_properties_is_fips_enabled(NULL) ? getrandom(buf, buflen, GRND_RANDOM) : getrandom(buf, buflen, 0);
 }
 #  endif    /* defined(OPENSSL_RAND_SEED_GETRANDOM) */
 
