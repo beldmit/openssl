@@ -457,6 +457,7 @@ typedef int (*SSL_async_callback_fn)(SSL *s, void *arg);
  */
 #define SSL_OP_ECH_GREASE_RETRY_CONFIG SSL_OP_BIT(40)
 #endif
+#define SSL_OP_RH_PERMIT_NOEMS_FIPS SSL_OP_BIT(48)
 
 /*
  * Option "collections."
