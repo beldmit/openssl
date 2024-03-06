@@ -284,6 +284,13 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     /* Step (1): nlen = Ceil(len(n)/8) */
     nlen = RSA_size(prsactx->rsa);
 
+#ifdef FIPS_MODULE
+    if (nlen < OPENSSL_RSA_FIPS_MIN_MODULUS_BITS/8) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_KEY_SIZE_TOO_SMALL);
+        return 0;
+    }
+#endif
+
     if (out == NULL) {
         if (nlen == 0) {
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY);
@@ -359,6 +366,13 @@ static int rsasve_recover(PROV_RSA_CTX *prsactx,
 
     /* Step (1): get the byte length of n */
     nlen = RSA_size(prsactx->rsa);
+
+#ifdef FIPS_MODULE
+    if (nlen < OPENSSL_RSA_FIPS_MIN_MODULUS_BITS/8) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_KEY_SIZE_TOO_SMALL);
+        return 0;
+    }
+#endif
 
     if (out == NULL) {
         if (nlen == 0) {
