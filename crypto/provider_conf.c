@@ -10,6 +10,8 @@
 #include <string.h>
 #include <openssl/trace.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
+#include <unistd.h>
 #include <openssl/conf.h>
 #include <openssl/safestack.h>
 #include <openssl/provider.h>
@@ -237,7 +239,7 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
         if (path != NULL)
             ossl_provider_set_module_path(prov, path);
 
-        ok = provider_conf_params(prov, NULL, NULL, value, cnf);
+        ok = cnf ? provider_conf_params(prov, NULL, NULL, value, cnf) : 1;
 
         if (ok == 1) {
             if (!ossl_provider_activate(prov, 1, 0)) {
@@ -266,6 +268,8 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
 
         if (ok <= 0)
             ossl_provider_free(prov);
+    } else {
+        ok = 1;
     }
     CRYPTO_THREAD_unlock(pcgbl->lock);
 
@@ -417,6 +421,30 @@ static int provider_conf_init(CONF_IMODULE *md, const CONF *cnf)
         cval = sk_CONF_VALUE_value(elist, i);
         if (!provider_conf_load(NCONF_get0_libctx((CONF *)cnf),
                                 cval->name, cval->value, cnf))
+            return 0;
+    }
+
+    if (ossl_get_kernel_fips_flag() != 0) { /* XXX from provider_conf_load */
+        OSSL_LIB_CTX *libctx = NCONF_get0_libctx((CONF *)cnf);
+#  define FIPS_LOCAL_CONF           OPENSSLDIR "/fips_local.cnf"
+
+        if (access(FIPS_LOCAL_CONF, R_OK) == 0) {
+            CONF *fips_conf = NCONF_new_ex(libctx, NCONF_default());
+            if (NCONF_load(fips_conf, FIPS_LOCAL_CONF, NULL) <= 0)
+                return 0;
+
+            if (provider_conf_load(libctx, "fips", "fips_sect", fips_conf) != 1) {
+                NCONF_free(fips_conf);
+                return 0;
+            }
+            NCONF_free(fips_conf);
+        } else {
+            if (provider_conf_activate(libctx, "fips", NULL, NULL, 0, NULL) != 1)
+                return 0;
+        }
+        if (provider_conf_activate(libctx, "base", NULL, NULL, 0, NULL) != 1)
+            return 0;
+        if (EVP_default_properties_enable_fips(libctx, 1) != 1)
             return 0;
     }
 
