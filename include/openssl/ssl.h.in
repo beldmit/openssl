@@ -417,6 +417,7 @@ typedef int (*SSL_async_callback_fn)(SSL *s, void *arg);
      * interoperability with CryptoPro CSP 3.x
      */
 # define SSL_OP_CRYPTOPRO_TLSEXT_BUG                     SSL_OP_BIT(31)
+# define SSL_OP_RH_PERMIT_NOEMS_FIPS                     SSL_OP_BIT(48)
 /*
  * Disable RFC8879 certificate compression
  * SSL_OP_NO_TX_CERTIFICATE_COMPRESSION: don't send compressed certificates,
