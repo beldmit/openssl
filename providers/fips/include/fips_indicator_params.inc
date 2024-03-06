@@ -1,5 +1,5 @@
 OSSL_FIPS_PARAM(security_checks, SECURITY_CHECKS, 1)
-OSSL_FIPS_PARAM(tls1_prf_ems_check, TLS1_PRF_EMS_CHECK, 0)
+OSSL_FIPS_PARAM(tls1_prf_ems_check, TLS1_PRF_EMS_CHECK, 1)
 OSSL_FIPS_PARAM(no_short_mac, NO_SHORT_MAC, 1)
 OSSL_FIPS_PARAM(hmac_key_check, HMAC_KEY_CHECK, 0)
 OSSL_FIPS_PARAM(kmac_key_check, KMAC_KEY_CHECK, 0)
