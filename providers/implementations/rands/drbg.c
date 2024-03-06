@@ -559,6 +559,9 @@ static int ossl_prov_drbg_reseed_unlocked(PROV_DRBG *drbg,
 #endif
     }
 
+#ifdef FIPS_MODULE
+    prediction_resistance = 1;
+#endif
     /* Reseed using our sources in addition */
     entropylen = get_entropy(drbg, &entropy, drbg->strength,
                              drbg->min_entropylen, drbg->max_entropylen,
@@ -680,8 +683,14 @@ int ossl_prov_drbg_generate(PROV_DRBG *drbg, unsigned char *out, size_t outlen,
             reseed_required = 1;
     }
     if (drbg->parent != NULL
-            && get_parent_reseed_count(drbg) != drbg->parent_reseed_counter)
+            && get_parent_reseed_count(drbg) != drbg->parent_reseed_counter) {
+#ifdef FIPS_MODULE
+        /* Red Hat patches provide chain reseeding when necessary so just sync counters*/
+        drbg->parent_reseed_counter = get_parent_reseed_count(drbg);
+#else
         reseed_required = 1;
+#endif
+        }
 
     if (reseed_required || prediction_resistance) {
         if (!ossl_prov_drbg_reseed_unlocked(drbg, prediction_resistance, NULL,
