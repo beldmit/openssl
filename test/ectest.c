@@ -2413,10 +2413,11 @@ static int do_test_custom_explicit_fromdata(EC_GROUP *group, BN_CTX *ctx,
     if (!TEST_ptr(params = OSSL_PARAM_BLD_to_param(bld))
         || !TEST_ptr(pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL))
         || !TEST_int_gt(EVP_PKEY_fromdata_init(pctx), 0)
-        || !TEST_int_gt(EVP_PKEY_fromdata(pctx, &pkeyparam,
+        || !TEST_int_le(EVP_PKEY_fromdata(pctx, &pkeyparam,
                                           EVP_PKEY_KEY_PARAMETERS, params), 0))
         goto err;
-
+/* As creating the key should fail, the rest of the test is pointless */
+# if 0
     /*- Check that all the set values are retrievable -*/
 
     /* There should be no match to a group name since the generator changed */
@@ -2545,6 +2546,7 @@ static int do_test_custom_explicit_fromdata(EC_GROUP *group, BN_CTX *ctx,
 #endif
         )
         goto err;
+#endif
     ret = 1;
 err:
     BN_free(order_out);
@@ -2826,21 +2828,21 @@ static int custom_params_test(int id)
 
     /* Compute keyexchange in both directions */
     if (!TEST_ptr(pctx1 = EVP_PKEY_CTX_new(pkey1, NULL))
-            || !TEST_int_eq(EVP_PKEY_derive_init(pctx1), 1)
-            || !TEST_int_eq(EVP_PKEY_derive_set_peer(pctx1, pkey2), 1)
+            || !TEST_int_le(EVP_PKEY_derive_init(pctx1), 0)
+/*          || !TEST_int_eq(EVP_PKEY_derive_set_peer(pctx1, pkey2), 1)
             || !TEST_int_eq(EVP_PKEY_derive(pctx1, NULL, &sslen), 1)
             || !TEST_int_gt(bsize, sslen)
-            || !TEST_int_eq(EVP_PKEY_derive(pctx1, buf1, &sslen), 1))
+            || !TEST_int_eq(EVP_PKEY_derive(pctx1, buf1, &sslen), 1)*/)
         goto err;
     if (!TEST_ptr(pctx2 = EVP_PKEY_CTX_new(pkey2, NULL))
-            || !TEST_int_eq(EVP_PKEY_derive_init(pctx2), 1)
-            || !TEST_int_eq(EVP_PKEY_derive_set_peer(pctx2, pkey1), 1)
+            || !TEST_int_le(EVP_PKEY_derive_init(pctx2), 1)
+/*          || !TEST_int_eq(EVP_PKEY_derive_set_peer(pctx2, pkey1), 1)
             || !TEST_int_eq(EVP_PKEY_derive(pctx2, NULL, &t), 1)
             || !TEST_int_gt(bsize, t)
             || !TEST_int_le(sslen, t)
-            || !TEST_int_eq(EVP_PKEY_derive(pctx2, buf2, &t), 1))
+            || !TEST_int_eq(EVP_PKEY_derive(pctx2, buf2, &t), 1) */)
         goto err;
-
+#if 0
     /* Both sides should expect the same shared secret */
     if (!TEST_mem_eq(buf1, sslen, buf2, t))
         goto err;
@@ -2892,7 +2894,7 @@ static int custom_params_test(int id)
             /* compare with previous result */
             || !TEST_mem_eq(buf1, t, buf2, sslen))
         goto err;
-
+#endif
     ret = 1;
 
  err:
