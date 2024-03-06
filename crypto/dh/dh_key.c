@@ -336,8 +336,12 @@ static int generate_key(DH *dh)
                 goto err;
         } else {
 #ifdef FIPS_MODULE
-            if (dh->params.q == NULL)
-                goto err;
+            ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+                           "FIPS 186-4 type domain parameters no longer"
+                           " allowed in FIPS mode, since the required"
+                           " generation routines were removed from FIPS"
+                           " 186-5");
+            goto err;
 #else
             if (dh->params.q == NULL) {
                 /* secret exponent length, must satisfy 2^(l-1) <= p */
@@ -358,9 +362,7 @@ static int generate_key(DH *dh)
                     if (!BN_clear_bit(priv_key, 0))
                         goto err;
                 }
-            } else
-#endif
-            {
+            } else {
                 /* Do a partial check for invalid p, q, g */
                 if (!ossl_ffc_params_simple_validate(dh->libctx, &dh->params,
                                                      FFC_PARAM_TYPE_DH, NULL))
@@ -376,6 +378,7 @@ static int generate_key(DH *dh)
                                                    priv_key))
                     goto err;
             }
+#endif
         }
     }
 
