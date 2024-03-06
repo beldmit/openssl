@@ -65,6 +65,7 @@ int ossl_rsa_key_op_get_protect(const RSA *rsa, int operation, int *outprotect)
  * Set protect = 1 for encryption or signing operations, or 0 otherwise. See
  * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf.
  */
+/* Red Hat build implements some extra limitations in providers/implementations/asymciphers/rsa_enc.c */
 int ossl_rsa_check_key_size(const RSA *rsa, int protect)
 {
     int sz = RSA_bits(rsa);
