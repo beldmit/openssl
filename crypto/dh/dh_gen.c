@@ -39,18 +39,26 @@ static int dh_builtin_genparams(DH *ret, int prime_len, int generator,
 int ossl_dh_generate_ffc_parameters(DH *dh, int type, int pbits, int qbits,
                                     BN_GENCB *cb)
 {
-    int ret, res;
+    int ret = 0;
 
 #ifndef FIPS_MODULE
+    int res;
+
     if (type == DH_PARAMGEN_TYPE_FIPS_186_2)
         ret = ossl_ffc_params_FIPS186_2_generate(dh->libctx, &dh->params,
                                                  FFC_PARAM_TYPE_DH,
                                                  pbits, qbits, &res, cb);
     else
-#endif
         ret = ossl_ffc_params_FIPS186_4_generate(dh->libctx, &dh->params,
                                                  FFC_PARAM_TYPE_DH,
                                                  pbits, qbits, &res, cb);
+#else
+    /* In FIPS mode, we no longer support FIPS 186-4 domain parameters */
+    ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+                   "FIPS 186-4 type domain parameters no longer allowed in"
+                   " FIPS mode, since the required generation routines were"
+                   " removed from FIPS 186-5");
+#endif
     if (ret > 0)
         dh->dirty_cnt++;
     return ret;

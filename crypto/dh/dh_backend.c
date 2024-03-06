@@ -47,6 +47,16 @@ int ossl_dh_params_fromdata(DH *dh, const OSSL_PARAM params[])
     if (!dh_ffc_params_fromdata(dh, params))
         return 0;
 
+#ifdef FIPS_MODULE
+    if (!ossl_dh_is_named_safe_prime_group(dh)) {
+        ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+                       "FIPS 186-4 type domain parameters no longer allowed in"
+                       " FIPS mode, since the required validation routines"
+                       " were removed from FIPS 186-5");
+        return 0;
+    }
+#endif
+
     param_priv_len =
         OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_DH_PRIV_LEN);
     if (param_priv_len != NULL

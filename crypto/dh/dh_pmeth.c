@@ -303,13 +303,17 @@ static DH *ffc_params_generate(OSSL_LIB_CTX *libctx, DH_PKEY_CTX *dctx,
                                                 prime_len, subprime_len, &res,
                                                 pcb);
     else
-# endif
-    /* For FIPS we always use the DH_PARAMGEN_TYPE_FIPS_186_4 generator */
-    if (dctx->paramgen_type >= DH_PARAMGEN_TYPE_FIPS_186_2)
         rv = ossl_ffc_params_FIPS186_4_generate(libctx, &ret->params,
                                                 FFC_PARAM_TYPE_DH,
                                                 prime_len, subprime_len, &res,
                                                 pcb);
+# else
+    /* In FIPS mode, we no longer support FIPS 186-4 domain parameters */
+    ERR_raise_data(ERR_LIB_DH, DH_R_BAD_FFC_PARAMETERS,
+                   "FIPS 186-4 type domain parameters no longer allowed in"
+                   " FIPS mode, since the required generation routines were"
+                   " removed from FIPS 186-5");
+# endif
     if (rv <= 0) {
         DH_free(ret);
         return NULL;
