@@ -187,9 +187,7 @@ static int dsa_setup_md(PROV_DSA_CTX *ctx,
         }
 #ifdef FIPS_MODULE
         {
-            int sha1_allowed
-                = ((ctx->operation
-                    & (EVP_PKEY_OP_SIGN | EVP_PKEY_OP_SIGNMSG)) == 0);
+            int sha1_allowed = 0;
 
             if (!ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND_GET(ctx),
                                                  OSSL_FIPS_IND_SETTABLE1,
