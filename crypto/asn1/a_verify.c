@@ -151,6 +151,11 @@ int ASN1_item_verify_ctx(const ASN1_ITEM *it, const X509_ALGOR *alg,
             ERR_raise(ERR_LIB_ASN1, ERR_R_EVP_LIB);
         if (ret <= 1)
             goto err;
+    } else if ((mdnid == NID_md5
+               && ossl_safe_getenv("OPENSSL_ENABLE_MD5_VERIFY") == NULL) ||
+               mdnid == NID_md4 || mdnid == NID_md2 || mdnid == NID_sha) {
+        ERR_raise(ERR_LIB_ASN1, ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM);
+        goto err;
     } else {
         const EVP_MD *type = NULL;
 
