@@ -687,6 +687,19 @@ static int test_property_list_to_string(int i)
     return ret;
 }
 
+#include <openssl/fips.h>
+static int test_downstream_FIPS_mode(void)
+{
+    int ret = 0;
+
+    ret = TEST_true(EVP_set_default_properties(NULL, "fips=yes"))
+          && TEST_true(FIPS_mode())
+          && TEST_true(EVP_set_default_properties(NULL, "fips=no"))
+          && TEST_false(FIPS_mode());
+
+    return ret;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_property_string);
@@ -700,6 +713,7 @@ int setup_tests(void)
     ADD_TEST(test_property);
     ADD_TEST(test_query_cache_stochastic);
     ADD_TEST(test_fips_mode);
+    ADD_TEST(test_downstream_FIPS_mode);
     ADD_ALL_TESTS(test_property_list_to_string, OSSL_NELEM(to_string_tests));
     return 1;
 }
