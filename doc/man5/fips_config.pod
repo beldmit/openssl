@@ -11,6 +11,19 @@ automatically loaded when the system is booted in FIPS mode, or when the
 environment variable B<OPENSSL_FORCE_FIPS_MODE> is set. See the documentation
 for more information.
 
+Red Hat Enterprise Linux uses a supplementary config for FIPS module located in
+OpenSSL configuration directory and managed by crypto policies. If present, it
+should have format
+
+ [fips_sect]
+ tls1-prf-ems-check = 0
+ activate = 1
+
+The B<tls1-prf-ems-check> option specifies whether FIPS module will require the
+presence of extended master secret or not.
+
+The B<activate> option enforces FIPS provider activation.
+
 =head1 COPYRIGHT
 
 Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
