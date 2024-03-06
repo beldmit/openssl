@@ -505,6 +505,18 @@ static int drbg_hmac_set_ctx_params_locked(void *vctx, const OSSL_PARAM params[]
     if (md != NULL && !ossl_drbg_verify_digest(ctx, libctx, md))
         return 0;   /* Error already raised for us */
 
+#ifdef FIPS_MODULE
+    if (!EVP_MD_is_a(md, SN_sha1)
+            && !EVP_MD_is_a(md, SN_sha256)
+            && !EVP_MD_is_a(md, SN_sha512)) {
+        ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
+                       "%s is not an acceptable hash function for an SP 800-90A"
+                       " DRBG according to FIPS 140-3 IG, section D.R",
+                       EVP_MD_get0_name(md));
+        return 0;
+    }
+#endif /* defined(FIPS_MODULE) */
+
     if (md != NULL && hmac->ctx != NULL) {
         /* These are taken from SP 800-90 10.1 Table 2 */
         md_size = EVP_MD_get_size(md);
