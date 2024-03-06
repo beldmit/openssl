@@ -407,9 +407,7 @@ static int rsa_setup_md(PROV_RSA_CTX *ctx, const char *mdname,
         }
 #ifdef FIPS_MODULE
         {
-            int sha1_allowed
-                = ((ctx->operation
-                    & (EVP_PKEY_OP_SIGN | EVP_PKEY_OP_SIGNMSG)) == 0);
+            int sha1_allowed = 0;
 
             if (!ossl_fips_ind_digest_sign_check(OSSL_FIPS_IND_GET(ctx),
                                                  OSSL_FIPS_IND_SETTABLE1,
@@ -1796,11 +1794,15 @@ static int rsa_set_ctx_params(void *vprsactx, const OSSL_PARAM params[])
 
     if (prsactx->md == NULL && pmdname == NULL
         && pad_mode == RSA_PKCS1_PSS_PADDING) {
+#ifdef FIPS_MODULE
+        pmdname = RSA_DEFAULT_DIGEST_NAME_NONLEGACY;
+#else
         if (ossl_ctx_legacy_digest_signatures_allowed(prsactx->libctx, 0)) {
             pmdname = RSA_DEFAULT_DIGEST_NAME;
         } else {
             pmdname = RSA_DEFAULT_DIGEST_NAME_NONLEGACY;
         }
+#endif
     }
 
     if (pmgf1mdname != NULL
