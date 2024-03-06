@@ -574,7 +574,6 @@ process.
 
 =head1 SEE ALSO
 
-L<openssl-fipsinstall(1)>,
 L<fips_config(5)>,
 L<OSSL_SELF_TEST_set_callback(3)>,
 L<OSSL_SELF_TEST_new(3)>,
