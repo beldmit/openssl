@@ -174,6 +174,18 @@ static int rsa_encrypt(void *vprsactx, unsigned char *out, size_t *outlen,
         return 0;
     }
 
+# ifdef FIPS_MODULE
+    if (prsactx->pad_mode == RSA_NO_PADDING) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_PADDING_MODE);
+        return 0;
+    }
+
+    if (RSA_bits(prsactx->rsa) < OPENSSL_RSA_FIPS_MIN_MODULUS_BITS) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+        return 0;
+    }
+# endif
+
     if (out == NULL) {
         *outlen = len;
         return 1;
@@ -233,6 +245,20 @@ static int rsa_decrypt(void *vprsactx, unsigned char *out, size_t *outlen,
 
     if (!ossl_prov_is_running())
         return 0;
+
+# ifdef FIPS_MODULE
+    if ((prsactx->pad_mode == RSA_PKCS1_PADDING
+         || prsactx->pad_mode == RSA_PKCS1_WITH_TLS_PADDING
+         || prsactx->pad_mode == RSA_NO_PADDING)) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_PADDING_MODE);
+        return 0;
+    }
+
+    if (RSA_bits(prsactx->rsa) < OPENSSL_RSA_FIPS_MIN_MODULUS_BITS) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+        return 0;
+    }
+# endif
 
     if (prsactx->pad_mode == RSA_PKCS1_WITH_TLS_PADDING) {
         if (out == NULL) {
