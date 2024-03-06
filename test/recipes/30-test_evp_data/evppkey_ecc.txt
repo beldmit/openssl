@@ -4561,3 +4561,4 @@ KeyName = ec3
 Ctrl = group:P-192
 Unapproved = 1
 Ctrl = key-check:0
+Result = KEYGEN_GENERATE_ERROR
