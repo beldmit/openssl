@@ -21,6 +21,7 @@
 #include <openssl/obj_mac.h>
 #include <openssl/core_names.h>
 #include <openssl/trace.h>
+#include <openssl/fips.h>
 
 /* seed1 through seed5 are concatenated */
 static int tls1_PRF(SSL_CONNECTION *s,
@@ -78,8 +79,14 @@ static int tls1_PRF(SSL_CONNECTION *s,
     }
 
  err:
-    if (fatal)
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+    if (fatal) {
+        /* The calls to this function are local so it's safe to implement the check */
+        if (FIPS_mode() && seed1_len >= TLS_MD_MASTER_SECRET_CONST_SIZE
+            && memcmp(seed1, TLS_MD_MASTER_SECRET_CONST, TLS_MD_MASTER_SECRET_CONST_SIZE) == 0)
+            SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, ERR_R_UNSUPPORTED);
+	else
+            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+    }
     else
         ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
     EVP_KDF_CTX_free(kctx);

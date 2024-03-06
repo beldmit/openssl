@@ -575,7 +575,7 @@ static int test_client_cert_verify_cb(void)
     STACK_OF(X509) *server_chain;
     SSL_CTX *cctx = NULL, *sctx = NULL;
     SSL *clientssl = NULL, *serverssl = NULL;
-    int testresult = 0;
+    int testresult = 0, status;
 
     if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
                                        TLS_client_method(), TLS1_VERSION, 0,
