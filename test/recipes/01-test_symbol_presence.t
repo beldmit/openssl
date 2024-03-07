@@ -185,6 +185,7 @@ foreach (sort keys %stlibname) {
     }
 }
 my @duplicates = sort grep { $symbols{$_} > 1 } keys %symbols;
+@duplicates = grep {($_ ne "OPENSSL_ia32cap_P") && ($_ ne "EVP_CIPHER_CTX_dup") && ($_ ne "EVP_MD_CTX_dup") } @duplicates;
 if (@duplicates) {
     note "Duplicates:";
     note join('\n', @duplicates);
