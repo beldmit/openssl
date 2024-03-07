@@ -2761,7 +2761,9 @@ int setup_tests(void)
     ADD_TEST(test_cipher_find);
     ADD_TEST(test_version);
 #if defined(DO_SSL_TRACE_TEST)
-    ADD_TEST(test_ssl_trace);
+    if (is_fips == 0) {
+        ADD_TEST(test_ssl_trace);
+    }
 #endif
     ADD_TEST(test_quic_forbidden_apis_ctx);
     ADD_TEST(test_quic_forbidden_apis);
