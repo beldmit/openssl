@@ -1,0 +1,10 @@
+0028-0073-FIPS-Use-OAEP-in-KATs-support-fixed-OAEP-seed.p.patch
+
+Some asym testing has been dropped upstream, unclear if this needs to survive,
+if so we may need to resurrect deleted code in upstream patch:
+
+    commit 635bf4946a7e948f26a348ddc3b5a8d282354f64
+
+    fips: remove redundant RSA encrypt/decrypt KAT
+--
+
