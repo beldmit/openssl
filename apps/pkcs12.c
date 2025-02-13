@@ -17,6 +17,7 @@
 #include <openssl/asn1.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/provider.h>
@@ -709,6 +710,9 @@ int pkcs12_main(int argc, char **argv)
         }
 
         if (maciter != -1) {
+            if (EVP_default_properties_is_fips_enabled(NULL))
+                pbmac1_pbkdf2 = 1;
+
             if (pbmac1_pbkdf2 == 1) {
                 if (!PKCS12_set_pbmac1_pbkdf2(p12, mpass, -1, NULL,
                                               macsaltlen, maciter,
