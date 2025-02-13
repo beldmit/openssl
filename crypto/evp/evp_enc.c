@@ -1763,7 +1763,7 @@ int EVP_CIPHER_CTX_rand_key(EVP_CIPHER_CTX *ctx, unsigned char *key)
 }
 
 EVP_CIPHER_CTX
-#if !defined(FIPS_MODULE)
+#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI)
 __attribute__ ((symver ("EVP_CIPHER_CTX_dup@@OPENSSL_3.1.0"),
                     symver ("EVP_CIPHER_CTX_dup@OPENSSL_3.2.0")))
 #endif
