@@ -14,6 +14,7 @@
 #include <openssl/err.h>
 #include <openssl/cms.h>
 #include <openssl/evp.h>
+#include <openssl/fips.h>
 #include "internal/sizes.h"
 #include "crypto/asn1.h"
 #include "crypto/evp.h"
@@ -375,6 +376,10 @@ static int cms_RecipientInfo_ktri_init(CMS_RecipientInfo *ri, X509 *recip,
             return 0;
         if (EVP_PKEY_encrypt_init(ktri->pctx) <= 0)
             return 0;
+        if (FIPS_mode()) {
+            if (EVP_PKEY_CTX_ctrl_str(ktri->pctx, "rsa_padding_mode", "oaep") <= 0)
+                return 0;
+        }
     } else if (!ossl_cms_env_asn1_ctrl(ri, 0))
         return 0;
     return 1;
@@ -540,6 +545,11 @@ static int cms_RecipientInfo_ktri_encrypt(const CMS_ContentInfo *cms,
 
         if (EVP_PKEY_encrypt_init(pctx) <= 0)
             goto err;
+
+        if (FIPS_mode()) {
+            if (EVP_PKEY_CTX_ctrl_str(pctx, "rsa_padding_mode", "oaep") <= 0)
+                goto err;
+        }
     }
 
     if (EVP_PKEY_encrypt(pctx, NULL, &eklen, ec->key, ec->keylen) <= 0)
