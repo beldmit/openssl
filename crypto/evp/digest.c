@@ -573,7 +573,7 @@ int EVP_DigestSqueeze(EVP_MD_CTX *ctx, unsigned char *md, size_t size)
 }
 
 EVP_MD_CTX
-#if !defined(FIPS_MODULE)
+#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI)
 __attribute__ ((symver ("EVP_MD_CTX_dup@@OPENSSL_3.1.0"),
                     symver ("EVP_MD_CTX_dup@OPENSSL_3.2.0")))
 #endif
