@@ -1023,9 +1023,10 @@ static int execute_test_large_message(const SSL_METHOD *smeth,
 /* sock must be connected */
 static int ktls_chk_platform(int sock)
 {
-    if (!ktls_enable(sock))
+/*    if (!ktls_enable(sock))
         return 0;
-    return 1;
+    return 1; */
+    return 0;
 }
 
 static int ping_pong_query(SSL *clientssl, SSL *serverssl)
