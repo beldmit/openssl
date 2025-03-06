@@ -284,6 +284,14 @@ Note this setting defaults to off if not provided
 All parameters in the section as well as sub-sections are made
 available to the provider.
 
+=head3 Loading the legacy provider
+
+Uncomment the sections that start with ## in openssl.cnf
+to enable the legacy provider.
+Note: In general it is not recommended to use the above mentioned algorithms for
+security critical operations, as they are cryptographically weak or vulnerable
+to side-channel attacks and as such have been deprecated.
+
 =head3 Default provider and its activation
 
 If no providers are activated explicitly, the default one is activated implicitly.
