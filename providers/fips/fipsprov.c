@@ -394,10 +394,12 @@ static const OSSL_ALGORITHM_CAPABLE fips_ciphers[] = {
         ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
     ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA512_ETM, ossl_aes256cbc_hmac_sha512_etm_functions,
         ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
+#if 0 /* Red Hat FIPS provider doesn't have fips=yes property on DES */
 #ifndef OPENSSL_NO_DES
     ALG(PROV_NAMES_DES_EDE3_ECB, ossl_tdes_ede3_ecb_functions),
     ALG(PROV_NAMES_DES_EDE3_CBC, ossl_tdes_ede3_cbc_functions),
 #endif /* OPENSSL_NO_DES */
+#endif
     { { NULL, NULL, NULL }, NULL }
 };
 static OSSL_ALGORITHM exported_fips_ciphers[OSSL_NELEM(fips_ciphers)];
