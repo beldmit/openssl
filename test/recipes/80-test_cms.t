@@ -107,7 +107,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed content DER format, DSA key",
+    [ "signed content DER format, DSA key, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER", "-nodetach",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
@@ -115,7 +115,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed detached content DER format, DSA key",
+    [ "signed detached content DER format, DSA key, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd2}", @prov, "-verify", "-in", "{output}.cms", "-inform", "DER",
@@ -124,7 +124,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed detached content DER format, add RSA signer (with DSA existing)",
+    [ "signed detached content DER format, add RSA signer (with DSA existing), no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
       [ "{cmd1}", @prov, "-resign", "-in", "{output}.cms", "-inform", "DER", "-outform", "DER",
@@ -135,7 +135,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed content test streaming BER format, DSA key",
+    [ "signed content test streaming BER format, DSA key, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-nodetach", "-stream",
         "-signer", catfile($smdir, "smdsa1.pem"), "-out", "{output}.cms" ],
@@ -144,7 +144,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys",
+    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-nodetach", "-stream",
         "-signer", $smrsa1,
@@ -157,7 +157,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, no attributes",
+    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, no attributes, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-noattr", "-nodetach", "-stream",
         "-signer", $smrsa1,
@@ -187,7 +187,7 @@ my @smime_pkcs7_tests = (
       \&zero_compare
     ],
 
-    [ "signed content test streaming S/MIME format, 2 DSA and 2 RSA keys",
+    [ "signed content test streaming S/MIME format, 2 DSA and 2 RSA keys, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-nodetach",
         "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
@@ -199,7 +199,7 @@ my @smime_pkcs7_tests = (
       \&final_compare
     ],
 
-    [ "signed content test streaming multipart S/MIME format, 2 DSA and 2 RSA keys",
+    [ "signed content test streaming multipart S/MIME format, 2 DSA and 2 RSA keys, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont,
         "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),
@@ -265,7 +265,7 @@ if ($no_fips || $old_fips) {
 
 my @smime_cms_tests = (
 
-    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, keyid",
+    [ "signed content test streaming BER format, 2 DSA and 2 RSA keys, keyid, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "DER",
         "-nodetach", "-keyid",
         "-signer", $smrsa1,
@@ -278,7 +278,7 @@ my @smime_cms_tests = (
       \&final_compare
     ],
 
-    [ "signed content test streaming PEM format, 2 DSA and 2 RSA keys",
+    [ "signed content test streaming PEM format, 2 DSA and 2 RSA keys, no Red Hat FIPS",
       [ "{cmd1}", @prov, "-sign", "-in", $smcont, "-outform", "PEM", "-nodetach",
         "-signer", $smrsa1,
         "-signer", catfile($smdir, "smrsa2.pem"),

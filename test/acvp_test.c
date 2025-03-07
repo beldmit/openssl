@@ -1735,6 +1735,7 @@ int setup_tests(void)
                   OSSL_NELEM(dh_safe_prime_keyver_data));
 #endif /* OPENSSL_NO_DH */
 
+#if 0 /* Red Hat FIPS provider doesn't have fips=yes property on DSA */
 #ifndef OPENSSL_NO_DSA
     dsasign_allowed = fips_provider_version_lt(libctx, 3, 4, 0);
     ADD_ALL_TESTS(dsa_keygen_test, OSSL_NELEM(dsa_keygen_data));
@@ -1743,6 +1744,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(dsa_siggen_test, OSSL_NELEM(dsa_siggen_data));
     ADD_ALL_TESTS(dsa_sigver_test, OSSL_NELEM(dsa_sigver_data));
 #endif /* OPENSSL_NO_DSA */
+#endif
 
 #ifndef OPENSSL_NO_EC
     ec_cofactors = fips_provider_version_ge(libctx, 3, 4, 0);
