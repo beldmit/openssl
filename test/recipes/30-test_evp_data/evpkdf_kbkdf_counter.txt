@@ -1869,7 +1869,7 @@ Ctrl.use-separator = use-separator:0
 Ctrl.r = r:8
 Ctrl.hexkey = hexkey:0ef9
 Ctrl.hexinfo = hexinfo:56ec
-Result = KDF_CTRL_ERROR
+Result = KDF_DERIVE_ERROR
 Reason = invalid key length
 
 Availablein = fips
