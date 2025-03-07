@@ -77,6 +77,13 @@ static int list_builtin_curves(BIO *out)
         const char *comment = curves[n].comment;
         const char *sname = OBJ_nid2sn(curves[n].nid);
 
+        if (((curves[n].nid == NID_secp256k1) || (curves[n].nid == NID_brainpoolP256r1)
+            || (curves[n].nid == NID_brainpoolP256t1) || (curves[n].nid == NID_brainpoolP320r1)
+            || (curves[n].nid == NID_brainpoolP320t1) || (curves[n].nid == NID_brainpoolP384r1)
+            || (curves[n].nid == NID_brainpoolP384t1) || (curves[n].nid == NID_brainpoolP512r1)
+            || (curves[n].nid == NID_brainpoolP512t1)) && EVP_default_properties_is_fips_enabled(NULL))
+            continue;
+
         if (comment == NULL)
             comment = "CURVE DESCRIPTION NOT AVAILABLE";
         if (sname == NULL)
