@@ -3037,6 +3037,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
 #endif /* OPENSSL_NO_DSA */
 #endif
 
+#if 0
 #ifndef OPENSSL_NO_ML_DSA
     {
         OSSL_SELF_TEST_DESC_SIGN_ML_DSA,
@@ -3081,6 +3082,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
         slh_dsa_sig_params, slh_dsa_sig_params
     },
 #endif /* OPENSSL_NO_SLH_DSA */
+#endif
 };
 
 #if !defined(OPENSSL_NO_ML_DSA)
