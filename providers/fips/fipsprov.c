@@ -430,7 +430,8 @@ static const OSSL_ALGORITHM fips_keyexch[] = {
 };
 
 static const OSSL_ALGORITHM fips_signature[] = {
-#ifndef OPENSSL_NO_DSA
+/* We don't certify DSA in our FIPS provider */
+#if 0 /* #ifndef OPENSSL_NO_DSA */
     { PROV_NAMES_DSA, FIPS_DEFAULT_PROPERTIES, ossl_dsa_signature_functions },
     { PROV_NAMES_DSA_SHA1, FIPS_DEFAULT_PROPERTIES, ossl_dsa_sha1_signature_functions },
     { PROV_NAMES_DSA_SHA224, FIPS_DEFAULT_PROPERTIES, ossl_dsa_sha224_signature_functions },
@@ -560,8 +561,9 @@ static const OSSL_ALGORITHM fips_keymgmt[] = {
       PROV_DESCS_DHX },
 #endif
 #ifndef OPENSSL_NO_DSA
-    { PROV_NAMES_DSA, FIPS_DEFAULT_PROPERTIES, ossl_dsa_keymgmt_functions,
-      PROV_DESCS_DSA },
+    /* We don't certify DSA in our FIPS provider */
+    /* { PROV_NAMES_DSA, FIPS_DEFAULT_PROPERTIES, ossl_dsa_keymgmt_functions,
+      PROV_DESCS_DSA }, */
 #endif
     { PROV_NAMES_RSA, FIPS_DEFAULT_PROPERTIES, ossl_rsa_keymgmt_functions,
       PROV_DESCS_RSA },
