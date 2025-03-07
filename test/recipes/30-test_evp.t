@@ -52,7 +52,6 @@ my @files = qw(
                 evpciph_des3_common.txt
                 evpkdf_hkdf.txt
                 evpkdf_kbkdf_counter.txt
-                evpkdf_kbkdf_kmac.txt
                 evpkdf_pbkdf1.txt
                 evpkdf_pbkdf2.txt
                 evpkdf_ss.txt
@@ -144,6 +143,7 @@ my @defltfiles = qw(
                      evpkdf_scrypt.txt
                      evpkdf_tls11_prf.txt
                      evpkdf_hmac_drbg.txt
+                     evpkdf_kbkdf_kmac.txt
                      evpmac_blake.txt
                      evpmac_poly1305.txt
                      evpmac_siphash.txt
