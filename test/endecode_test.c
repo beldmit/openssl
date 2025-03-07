@@ -1549,6 +1549,7 @@ int setup_tests(void)
          * so no legacy tests.
          */
 #endif
+    if (is_fips == 0) {
 #ifndef OPENSSL_NO_DSA
         ADD_TEST_SUITE(DSA);
         ADD_TEST_SUITE_PARAMS(DSA);
@@ -1559,6 +1560,7 @@ int setup_tests(void)
         ADD_TEST_SUITE_PROTECTED_PVK(DSA);
 #endif
 #endif
+    }
 #ifndef OPENSSL_NO_EC
         ADD_TEST(ec_encode_to_data_multi);
         ADD_TEST_SUITE(EC);

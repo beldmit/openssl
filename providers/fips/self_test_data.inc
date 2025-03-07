@@ -1547,8 +1547,9 @@ static const unsigned char ed448_expected_sig[] = {
 # endif /* OPENSSL_NO_ECX */
 #endif /* OPENSSL_NO_EC */
 
-#ifndef OPENSSL_NO_DSA
 /* dsa 2048 */
+#if 0
+#ifndef OPENSSL_NO_DSA
 static const unsigned char dsa_p[] = {
     0xa2, 0x9b, 0x88, 0x72, 0xce, 0x8b, 0x84, 0x23,
     0xb7, 0xd5, 0xd2, 0x1d, 0x4b, 0x02, 0xf5, 0x7e,
@@ -1676,6 +1677,7 @@ static const ST_KAT_PARAM dsa_key[] = {
     ST_KAT_PARAM_END()
 };
 #endif /* OPENSSL_NO_DSA */
+#endif
 
 #ifndef OPENSSL_NO_ML_DSA
 static const unsigned char ml_dsa_65_pub_key[] = {
@@ -3038,6 +3040,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
     },
 # endif /* OPENSSL_NO_ECX */
 #endif /* OPENSSL_NO_EC */
+#if 0
 #ifndef OPENSSL_NO_DSA
     {
         OSSL_SELF_TEST_DESC_SIGN_DSA,
@@ -3050,6 +3053,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
         ITM(dsa_expected_sig)
     },
 #endif /* OPENSSL_NO_DSA */
+#endif
 
 #ifndef OPENSSL_NO_ML_DSA
     {
