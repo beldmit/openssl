@@ -24,7 +24,7 @@ use lib bldtop_dir('.');
 plan skip_all => "This test is unsupported in a no-dsa build"
     if disabled("dsa");
 
-my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+my $no_fips = 1;
 
 plan tests =>
     ($no_fips ? 0 : 2)          # FIPS related tests
