@@ -831,7 +831,9 @@ int setup_tests(void)
     ADD_TEST(kem_invalid_keytype);
 #endif
 #ifndef OPENSSL_NO_DES
-    ADD_TEST(test_cipher_tdes_randkey);
+    if (strcmp(prov_name, "fips") != 0) {
+        ADD_TEST(test_cipher_tdes_randkey);
+    }
 #endif
     return 1;
 }

@@ -398,7 +398,7 @@ my @smime_cms_tests = (
       \&final_compare
     ],
 
-    [ "encrypted content test streaming PEM format, triple DES key",
+    [ "encrypted content test streaming PEM format, triple DES key, no Red Hat FIPS",
       [ "{cmd1}", @defaultprov, "-EncryptedData_encrypt", "-in", $smcont, "-outform", "PEM",
         "-des3", "-secretkey", "000102030405060708090A0B0C0D0E0F1011121314151617",
         "-stream", "-out", "{output}.cms" ],
