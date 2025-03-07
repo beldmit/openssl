@@ -293,10 +293,11 @@ static const OSSL_ALGORITHM fips_digests[] = {
      * KECCAK-KMAC-128 and KECCAK-KMAC-256 as hashes are mostly useful for
      * KMAC128 and KMAC256.
      */
-    { PROV_NAMES_KECCAK_KMAC_128, FIPS_DEFAULT_PROPERTIES,
+    /* We don't certify KECCAK in our FIPS provider */
+    /* { PROV_NAMES_KECCAK_KMAC_128, FIPS_DEFAULT_PROPERTIES,
       ossl_keccak_kmac_128_functions },
     { PROV_NAMES_KECCAK_KMAC_256, FIPS_DEFAULT_PROPERTIES,
-      ossl_keccak_kmac_256_functions },
+      ossl_keccak_kmac_256_functions }, */
     { NULL, NULL, NULL }
 };
 
@@ -369,8 +370,9 @@ static const OSSL_ALGORITHM fips_macs[] = {
 #endif
     { PROV_NAMES_GMAC, FIPS_DEFAULT_PROPERTIES, ossl_gmac_functions },
     { PROV_NAMES_HMAC, FIPS_DEFAULT_PROPERTIES, ossl_hmac_functions },
-    { PROV_NAMES_KMAC_128, FIPS_DEFAULT_PROPERTIES, ossl_kmac128_functions },
-    { PROV_NAMES_KMAC_256, FIPS_DEFAULT_PROPERTIES, ossl_kmac256_functions },
+    /* We don't certify KMAC in our FIPS provider */
+    /*{ PROV_NAMES_KMAC_128, FIPS_DEFAULT_PROPERTIES, ossl_kmac128_functions },
+    { PROV_NAMES_KMAC_256, FIPS_DEFAULT_PROPERTIES, ossl_kmac256_functions }, */
     { NULL, NULL, NULL }
 };
 
