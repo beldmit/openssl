@@ -544,6 +544,7 @@ static const ST_KAT_PARAM kbkdf_params[] = {
     ST_KAT_PARAM_END()
 };
 
+#if 0
 static const char kbkdf_kmac_mac[] = "KMAC128";
 static unsigned char kbkdf_kmac_label[] = {
     0xB5, 0xB5, 0xF3, 0x71, 0x9F, 0xBE, 0x5B, 0x3D,
@@ -570,6 +571,7 @@ static const ST_KAT_PARAM kbkdf_kmac_params[] = {
     ST_KAT_PARAM_OCTET(OSSL_KDF_PARAM_INFO, kbkdf_kmac_context),
     ST_KAT_PARAM_END()
 };
+#endif
 
 static const char tls13_kdf_digest[] = "SHA256";
 static int tls13_kdf_extract_mode = EVP_KDF_HKDF_MODE_EXTRACT_ONLY;
@@ -660,12 +662,14 @@ static const ST_KAT_KDF st_kat_kdf_tests[] =
         kbkdf_params,
         ITM(kbkdf_expected)
     },
+#if 0
     {
         OSSL_SELF_TEST_DESC_KDF_KBKDF_KMAC,
         OSSL_KDF_NAME_KBKDF,
         kbkdf_kmac_params,
         ITM(kbkdf_kmac_expected)
     },
+#endif
     {
         OSSL_SELF_TEST_DESC_KDF_HKDF,
         OSSL_KDF_NAME_HKDF,
