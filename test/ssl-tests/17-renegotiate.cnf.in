@@ -15,7 +15,7 @@ use warnings;
 package ssltests;
 use OpenSSL::Test::Utils;
 
-our $fips_3_4;
+our $fips_mode;
 
 our @tests = (
     {
@@ -318,5 +318,5 @@ our @tests_tls1_2 = (
     }
 );
 
-push @tests, @tests_tls1_2_rsa unless disabled("tls1_2") or $fips_3_4;
+push @tests, @tests_tls1_2_rsa unless disabled("tls1_2") or $fips_mode;
 push @tests, @tests_tls1_2 unless disabled("tls1_2");
