@@ -17,7 +17,7 @@ our $fips_mode;
 our $fips_3_4;
 
 # Nothing to test with newer fips providers
-return if $fips_3_4;
+return if $fips_mode;
 
 our @tests = (
     {
