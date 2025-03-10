@@ -14,7 +14,7 @@ use warnings;
 
 package ssltests;
 
-our $fips_3_4;
+our $fips_mode;
 
 our @tests = (
     # Default fragment size is 512.
@@ -273,4 +273,4 @@ my @tests_rsa = (
 );
 
 push @tests, @tests_rsa
-    unless $fips_3_4;
+    unless $fips_mode;

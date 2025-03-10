@@ -133,7 +133,7 @@ foreach my $sctp ("No", "Yes")
     );
     push @tests, @tests_basic;
 
-    next if disabled("dtls1_2") || $fips_3_4;
+    next if disabled("dtls1_2") || $fips_mode;
     our @tests_dtls1_2 = (
         {
             name => "renegotiate-aead-to-non-aead".$suffix,
