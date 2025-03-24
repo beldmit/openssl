@@ -33,7 +33,7 @@
 #include "prov/der_ec.h"
 #include "crypto/ec.h"
 
-static OSSL_FUNC_signature_newctx_fn ecdsa_newctx;
+OSSL_FUNC_signature_newctx_fn ecdsa_newctx;
 static OSSL_FUNC_signature_sign_init_fn ecdsa_sign_init;
 static OSSL_FUNC_signature_verify_init_fn ecdsa_verify_init;
 static OSSL_FUNC_signature_sign_fn ecdsa_sign;
@@ -48,7 +48,7 @@ static OSSL_FUNC_signature_digest_sign_final_fn ecdsa_digest_sign_final;
 static OSSL_FUNC_signature_digest_verify_init_fn ecdsa_digest_verify_init;
 static OSSL_FUNC_signature_digest_verify_update_fn ecdsa_digest_signverify_update;
 static OSSL_FUNC_signature_digest_verify_final_fn ecdsa_digest_verify_final;
-static OSSL_FUNC_signature_freectx_fn ecdsa_freectx;
+OSSL_FUNC_signature_freectx_fn ecdsa_freectx;
 static OSSL_FUNC_signature_dupctx_fn ecdsa_dupctx;
 static OSSL_FUNC_signature_query_key_types_fn ecdsa_sigalg_query_key_types;
 static OSSL_FUNC_signature_get_ctx_params_fn ecdsa_get_ctx_params;
@@ -139,7 +139,7 @@ typedef struct {
     OSSL_FIPS_IND_DECLARE
 } PROV_ECDSA_CTX;
 
-static void *ecdsa_newctx(void *provctx, const char *propq)
+void *ecdsa_newctx(void *provctx, const char *propq)
 {
     PROV_ECDSA_CTX *ctx;
 
@@ -613,7 +613,7 @@ int ecdsa_digest_verify_final(void *vctx, const unsigned char *sig,
     return ok;
 }
 
-static void ecdsa_freectx(void *vctx)
+void ecdsa_freectx(void *vctx)
 {
     PROV_ECDSA_CTX *ctx = (PROV_ECDSA_CTX *)vctx;
 
@@ -861,6 +861,35 @@ static const OSSL_PARAM *ecdsa_settable_ctx_md_params(void *vctx)
 
     return EVP_MD_settable_ctx_params(ctx->md);
 }
+
+#ifdef FIPS_MODULE
+int do_ec_pct(void *vctx, const char *mdname, void *ec)
+{
+    static const unsigned char data[32];
+    unsigned char sigbuf[256];
+    size_t siglen = sizeof(sigbuf);
+
+    if (ecdsa_digest_sign_init(vctx, mdname, ec, NULL) <= 0)
+        return 0;
+
+    if (ecdsa_digest_signverify_update(vctx, data, sizeof(data)) <= 0)
+        return 0;
+
+    if (ecdsa_digest_sign_final(vctx, sigbuf, &siglen, sizeof(sigbuf)) <= 0)
+        return 0;
+
+    if (ecdsa_digest_verify_init(vctx, mdname, ec, NULL) <= 0)
+        return 0;
+
+    if (ecdsa_digest_signverify_update(vctx, data, sizeof(data)) <= 0)
+        return 0;
+
+    if (ecdsa_digest_verify_final(vctx, sigbuf, siglen) <= 0)
+        return 0;
+
+    return 1;
+}
+#endif
 
 const OSSL_DISPATCH ossl_ecdsa_signature_functions[] = {
     { OSSL_FUNC_SIGNATURE_NEWCTX, (void (*)(void))ecdsa_newctx },
