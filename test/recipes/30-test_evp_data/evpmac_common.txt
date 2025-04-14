@@ -271,7 +271,7 @@ MAC = HMAC
 Algorithm = SHA256
 Input = "Test Input"
 Key = 0001020304
-Result = MAC_INIT_ERROR
+Output = db70da6176d87813b059879ccc27bc53e295c6eca74db8bdc4e77d7e951d894b
 
 Title = HMAC FIPS short key indicator test
 
