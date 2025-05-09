@@ -3172,18 +3172,18 @@ int speed_main(int argc, char **argv)
                                                       (void *)key32, 16);
         params[1] = OSSL_PARAM_construct_end();
 
-        if (mac_setup("KMAC-128", &mac, params, loopargs, loopargs_len) < 1)
-            goto end;
-        for (testnum = 0; testnum < size_num; testnum++) {
-            print_message(names[D_KMAC128], lengths[testnum], seconds.sym);
-            Time_F(START);
-            count = run_benchmark(async_jobs, KMAC128_loop, loopargs);
-            d = Time_F(STOP);
-            print_result(D_KMAC128, testnum, count, d);
-            if (count < 0)
-                break;
+        if (mac_setup("KMAC-128", &mac, params, loopargs, loopargs_len) == 1) {
+            for (testnum = 0; testnum < size_num; testnum++) {
+                print_message(names[D_KMAC128], lengths[testnum], seconds.sym);
+                Time_F(START);
+                count = run_benchmark(async_jobs, KMAC128_loop, loopargs);
+                d = Time_F(STOP);
+                print_result(D_KMAC128, testnum, count, d);
+                if (count < 0)
+                    break;
+            }
+            mac_teardown(&mac, loopargs, loopargs_len);
         }
-        mac_teardown(&mac, loopargs, loopargs_len);
     }
 
     if (doit[D_KMAC256]) {
@@ -3193,18 +3193,18 @@ int speed_main(int argc, char **argv)
                                                       (void *)key32, 32);
         params[1] = OSSL_PARAM_construct_end();
 
-        if (mac_setup("KMAC-256", &mac, params, loopargs, loopargs_len) < 1)
-            goto end;
-        for (testnum = 0; testnum < size_num; testnum++) {
-            print_message(names[D_KMAC256], lengths[testnum], seconds.sym);
-            Time_F(START);
-            count = run_benchmark(async_jobs, KMAC256_loop, loopargs);
-            d = Time_F(STOP);
-            print_result(D_KMAC256, testnum, count, d);
-            if (count < 0)
-                break;
+        if (mac_setup("KMAC-256", &mac, params, loopargs, loopargs_len) == 1) {
+            for (testnum = 0; testnum < size_num; testnum++) {
+                print_message(names[D_KMAC256], lengths[testnum], seconds.sym);
+                Time_F(START);
+                count = run_benchmark(async_jobs, KMAC256_loop, loopargs);
+                d = Time_F(STOP);
+                print_result(D_KMAC256, testnum, count, d);
+                if (count < 0)
+                    break;
+            }
+            mac_teardown(&mac, loopargs, loopargs_len);
         }
-        mac_teardown(&mac, loopargs, loopargs_len);
     }
 
     for (i = 0; i < loopargs_len; i++)
