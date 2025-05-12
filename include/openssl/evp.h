@@ -675,6 +675,10 @@ void EVP_CIPHER_CTX_set_flags(EVP_CIPHER_CTX *ctx, int flags);
 void EVP_CIPHER_CTX_clear_flags(EVP_CIPHER_CTX *ctx, int flags);
 int EVP_CIPHER_CTX_test_flags(const EVP_CIPHER_CTX *ctx, int flags);
 
+# define EVP_CIPHER_REDHAT_FIPS_INDICATOR_UNDETERMINED 0
+# define EVP_CIPHER_REDHAT_FIPS_INDICATOR_APPROVED     1
+# define EVP_CIPHER_REDHAT_FIPS_INDICATOR_NOT_APPROVED 2
+
 __owur int EVP_EncryptInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
     const unsigned char *key, const unsigned char *iv);
 __owur int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx,
@@ -748,6 +752,10 @@ __owur int EVP_CipherPipelineFinal(EVP_CIPHER_CTX *ctx,
     const size_t *outsize);
 __owur int EVP_CipherFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm,
     int *outl);
+
+# define EVP_SIGNATURE_REDHAT_FIPS_INDICATOR_UNDETERMINED 0
+# define EVP_SIGNATURE_REDHAT_FIPS_INDICATOR_APPROVED     1
+# define EVP_SIGNATURE_REDHAT_FIPS_INDICATOR_NOT_APPROVED 2
 
 __owur int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *s,
     EVP_PKEY *pkey);
@@ -1152,6 +1160,9 @@ void EVP_MD_do_all_provided(OSSL_LIB_CTX *libctx,
     void *arg);
 
 /* MAC stuff */
+# define EVP_MAC_REDHAT_FIPS_INDICATOR_UNDETERMINED 0
+# define EVP_MAC_REDHAT_FIPS_INDICATOR_APPROVED     1
+# define EVP_MAC_REDHAT_FIPS_INDICATOR_NOT_APPROVED 2
 
 EVP_MAC *EVP_MAC_fetch(OSSL_LIB_CTX *libctx, const char *algorithm,
     const char *properties);
@@ -1598,6 +1609,10 @@ int EVP_PKEY_CTX_set_mac_key(EVP_PKEY_CTX *ctx, const unsigned char *key,
  * Method handles all operations: don't assume any digest related defaults.
  */
 #define EVP_PKEY_FLAG_SIGCTX_CUSTOM 4
+
+# define EVP_PKEY_REDHAT_FIPS_INDICATOR_UNDETERMINED 0
+# define EVP_PKEY_REDHAT_FIPS_INDICATOR_APPROVED     1
+# define EVP_PKEY_REDHAT_FIPS_INDICATOR_NOT_APPROVED 2
 
 EVP_KEYMGMT *EVP_KEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
     const char *properties);
