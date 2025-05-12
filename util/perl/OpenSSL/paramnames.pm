@@ -143,6 +143,8 @@ my %params = (
     'CIPHER_PARAM_FIPS_ENCRYPT_CHECK' =>   "encrypt-check", # int
     'CIPHER_PARAM_FIPS_APPROVED_INDICATOR' => '*ALG_PARAM_FIPS_APPROVED_INDICATOR',
     'CIPHER_PARAM_ALGORITHM_ID' =>         '*ALG_PARAM_ALGORITHM_ID',
+    #Old RedHat FIPS provider compatibility
+    'CIPHER_PARAM_REDHAT_FIPS_INDICATOR' => "redhat-fips-indicator", # int
     # Historically, CIPHER_PARAM_ALGORITHM_ID_PARAMS_OLD was used.  For the
     # time being, the old libcrypto functions will use both, so old providers
     # continue to work.
@@ -190,6 +192,7 @@ my %params = (
     'MAC_PARAM_SIZE' =>             "size",                     # size_t
     'MAC_PARAM_BLOCK_SIZE' =>       "block-size",               # size_t
     'MAC_PARAM_TLS_DATA_SIZE' =>    "tls-data-size",            # size_t
+    'MAC_PARAM_REDHAT_FIPS_INDICATOR' => "redhat-fips-indicator",    # size_t
     'MAC_PARAM_FIPS_NO_SHORT_MAC' =>'*PROV_PARAM_NO_SHORT_MAC',
     'MAC_PARAM_FIPS_KEY_CHECK' =>   '*PKEY_PARAM_FIPS_KEY_CHECK',
     'MAC_PARAM_FIPS_APPROVED_INDICATOR' => '*ALG_PARAM_FIPS_APPROVED_INDICATOR',
@@ -234,6 +237,7 @@ my %params = (
     'KDF_PARAM_X942_SUPP_PUBINFO' =>    "supp-pubinfo",
     'KDF_PARAM_X942_SUPP_PRIVINFO' =>   "supp-privinfo",
     'KDF_PARAM_X942_USE_KEYBITS' =>     "use-keybits",
+    'KDF_PARAM_REDHAT_FIPS_INDICATOR' =>     "redhat-fips-indicator",
     'KDF_PARAM_HMACDRBG_ENTROPY' =>     "entropy",
     'KDF_PARAM_HMACDRBG_NONCE' =>       "nonce",
     'KDF_PARAM_THREADS' =>        "threads",                # uint32_t
@@ -474,6 +478,7 @@ my %params = (
     'SIGNATURE_PARAM_MGF1_DIGEST' =>          '*PKEY_PARAM_MGF1_DIGEST',
     'SIGNATURE_PARAM_MGF1_PROPERTIES' =>      '*PKEY_PARAM_MGF1_PROPERTIES',
     'SIGNATURE_PARAM_DIGEST_SIZE' =>          '*PKEY_PARAM_DIGEST_SIZE',
+    'SIGNATURE_PARAM_REDHAT_FIPS_INDICATOR' => "redhat-fips-indicator",
     'SIGNATURE_PARAM_NONCE_TYPE' =>           "nonce-type",
     'SIGNATURE_PARAM_INSTANCE' =>             "instance",
     'SIGNATURE_PARAM_CONTEXT_STRING' =>       "context-string",
@@ -508,6 +513,7 @@ my %params = (
     'ASYM_CIPHER_PARAM_FIPS_RSA_PKCS15_PAD_DISABLED' => '*PROV_PARAM_RSA_PKCS15_PAD_DISABLED',
     'ASYM_CIPHER_PARAM_FIPS_KEY_CHECK' =>           '*PKEY_PARAM_FIPS_KEY_CHECK',
     'ASYM_CIPHER_PARAM_FIPS_APPROVED_INDICATOR' =>  '*ALG_PARAM_FIPS_APPROVED_INDICATOR',
+    'ASYM_CIPHER_PARAM_REDHAT_FIPS_INDICATOR' =>    "redhat-fips-indicator",
 
 # Encoder / decoder parameters
 
@@ -541,6 +547,7 @@ my %params = (
 
 # KEM parameters
     'KEM_PARAM_OPERATION' =>            "operation",
+    'KEM_PARAM_REDHAT_FIPS_INDICATOR' => "redhat-fips-indicator",
     'KEM_PARAM_IKME' =>                 "ikme",
     'KEM_PARAM_FIPS_KEY_CHECK' =>       '*PKEY_PARAM_FIPS_KEY_CHECK',
     'KEM_PARAM_FIPS_APPROVED_INDICATOR' => '*ALG_PARAM_FIPS_APPROVED_INDICATOR',
