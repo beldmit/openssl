@@ -133,9 +133,6 @@ static void ossl_ctx_legacy_digest_signatures_free(void *vldsigs)
 static void *ossl_ctx_legacy_digest_signatures_new(OSSL_LIB_CTX *ctx)
 {
     OSSL_LEGACY_DIGEST_SIGNATURES* ldsigs = OPENSSL_zalloc(sizeof(OSSL_LEGACY_DIGEST_SIGNATURES));
-    /* Warning: This patch differs from the same patch in CentOS and RHEL here,
-     * because the default on Fedora is to allow SHA-1 and support disabling
-     * it, while CentOS/RHEL disable it by default and allow enabling it. */
     ldsigs->allowed = 0;
     return ldsigs;
 }
@@ -770,9 +767,6 @@ int ossl_ctx_legacy_digest_signatures_allowed(OSSL_LIB_CTX *libctx, int loadconf
          return 1;
  #endif
 
-    /* Warning: This patch differs from the same patch in CentOS and RHEL here,
-     * because the default on Fedora is to allow SHA-1 and support disabling
-     * it, while CentOS/RHEL disable it by default and allow enabling it. */
     return ldsigs != NULL ? ldsigs->allowed : 0;
 }
 

@@ -198,14 +198,13 @@ static int ecdsa_setup_md(PROV_ECDSA_CTX *ctx,
     }
     md_nid = ossl_digest_get_approved_nid(md);
 
-#ifdef FIPS_MODULE
     md_nid = rh_digest_signatures_allowed(ctx->libctx, md_nid);
-    if (md_nid <= 0) {
+    /* KECCAK-256 is explicitly allowed for ECDSA despite it doesn't have a NID*/
+    if (md_nid <= 0 && !(EVP_MD_is_a(md, "KECCAK-256"))) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
                        "digest=%s", mdname);
         goto err;
     }
-#endif
 
     /* XOF digests don't work */
     if (EVP_MD_xof(md)) {
