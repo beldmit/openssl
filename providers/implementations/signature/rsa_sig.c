@@ -476,9 +476,8 @@ static int rsa_setup_mgf1_md(PROV_RSA_CTX *ctx, const char *mdname,
                        "%s could not be fetched", mdname);
         return 0;
     }
-    /* The default for mgf1 is SHA1 - so check if we allow SHA1 */
+    /* The default for mgf1 is SHA1 - so allow SHA1 */
     if ((mdnid = ossl_digest_rsa_sign_get_md_nid(md)) <= 0
-        || (mdnid = rh_digest_signatures_allowed(ctx->libctx, mdnid)) <= 0
         || !rsa_check_padding(ctx, NULL, mdname, mdnid)) {
         if (mdnid <= 0)
             ERR_raise_data(ERR_LIB_PROV, PROV_R_DIGEST_NOT_ALLOWED,
