@@ -517,8 +517,8 @@ static const OSSL_ALGORITHM deflt_asym_kem[] = {
     { "X448MLKEM1024", "provider=default", ossl_mlx_kem_asym_kem_functions },
 #endif
 #if !defined(OPENSSL_NO_EC)
-    { "SecP256r1MLKEM768", "provider=default", ossl_mlx_kem_asym_kem_functions },
-    { "SecP384r1MLKEM1024", "provider=default", ossl_mlx_kem_asym_kem_functions },
+    { "SecP256r1MLKEM768", "provider=default,fips=yes", ossl_mlx_kem_asym_kem_functions },
+    { "SecP384r1MLKEM1024", "provider=default,fips=yes", ossl_mlx_kem_asym_kem_functions },
 #endif
 #endif
     { NULL, NULL, NULL }
@@ -594,13 +594,13 @@ static const OSSL_ALGORITHM deflt_keymgmt[] = {
     { PROV_NAMES_X25519MLKEM768, "provider=default", ossl_mlx_x25519_kem_kmgmt_functions,
         PROV_DESCS_X25519MLKEM768 },
     { PROV_NAMES_X448MLKEM1024, "provider=default", ossl_mlx_x448_kem_kmgmt_functions,
-        PROV_DESCS_X448MLKEM1024 },
+      PROV_DESCS_X448MLKEM1024 },
 #endif
 #if !defined(OPENSSL_NO_EC)
-    { PROV_NAMES_SecP256r1MLKEM768, "provider=default", ossl_mlx_p256_kem_kmgmt_functions,
-        PROV_DESCS_SecP256r1MLKEM768 },
-    { PROV_NAMES_SecP384r1MLKEM1024, "provider=default", ossl_mlx_p384_kem_kmgmt_functions,
-        PROV_DESCS_SecP384r1MLKEM1024 },
+   { PROV_NAMES_SecP256r1MLKEM768, "provider=default,fips=yes", ossl_mlx_p256_kem_kmgmt_functions,
+     PROV_DESCS_SecP256r1MLKEM768 },
+   { PROV_NAMES_SecP384r1MLKEM1024, "provider=default,fips=yes", ossl_mlx_p384_kem_kmgmt_functions,
+     PROV_DESCS_SecP384r1MLKEM1024 },
 #endif
 #endif
 #ifndef OPENSSL_NO_SLH_DSA
