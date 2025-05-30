@@ -24,6 +24,7 @@
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
 #include "providers/implementations/kem/mlx_kem.inc"
+#include <string.h>
 
 static OSSL_FUNC_kem_newctx_fn mlx_kem_newctx;
 static OSSL_FUNC_kem_freectx_fn mlx_kem_freectx;
@@ -139,6 +140,28 @@ static int mlx_kem_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 #endif
 
+char *get_adjusted_propq(const char *propq)
+{
+    char *adjusted_propq = NULL;
+    const char *nofips = "-fips";
+    size_t len = propq ? strlen(propq) + 1 + strlen(nofips) + 1 :
+                                             strlen(nofips) + 1;
+    char *ptr = NULL;
+
+    adjusted_propq = OPENSSL_zalloc(len);
+    if (adjusted_propq != NULL) {
+        ptr = adjusted_propq;
+        if (propq && strlen(propq) > 0) {
+            memcpy(ptr, propq, strlen(propq));
+            ptr += strlen(propq);
+            *ptr = ',';
+            ptr++;
+        }
+        memcpy(ptr, nofips, strlen(nofips));
+    }
+    return adjusted_propq;
+}
+
 static int mlx_kem_encapsulate(void *vctx, unsigned char *ctext, size_t *clen,
     unsigned char *shsec, size_t *slen)
 {
@@ -151,6 +174,7 @@ static int mlx_kem_encapsulate(void *vctx, unsigned char *ctext, size_t *clen,
     uint8_t *sbuf;
     int ml_kem_slot = key->xinfo->ml_kem_slot;
     int ret = 0;
+    char *adjusted_propq = NULL;
 
     if (!mlx_kem_have_pubkey(key)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_KEY);
@@ -203,7 +227,8 @@ static int mlx_kem_encapsulate(void *vctx, unsigned char *ctext, size_t *clen,
     encap_slen = ML_KEM_SHARED_SECRET_BYTES;
     cbuf = ctext + ml_kem_slot * key->xinfo->pubkey_bytes;
     sbuf = shsec + ml_kem_slot * key->xinfo->shsec_bytes;
-    ctx = EVP_PKEY_CTX_new_from_pkey(key->libctx, key->mkey, key->propq);
+    adjusted_propq = get_adjusted_propq(key->propq);
+    ctx = EVP_PKEY_CTX_new_from_pkey(key->libctx, key->mkey, adjusted_propq ? adjusted_propq : key->propq);
     if (ctx == NULL
         || EVP_PKEY_encapsulate_init(ctx, NULL) <= 0
         || EVP_PKEY_encapsulate(ctx, cbuf, &encap_clen, sbuf, &encap_slen) <= 0)
@@ -278,6 +303,7 @@ end:
             ML_KEM_SHARED_SECRET_BYTES + key->xinfo->shsec_bytes);
     EVP_PKEY_free(xkey);
     EVP_PKEY_CTX_free(ctx);
+    OPENSSL_free(adjusted_propq);
     return ret;
 }
 
@@ -293,6 +319,7 @@ static int mlx_kem_decapsulate(void *vctx, uint8_t *shsec, size_t *slen,
     size_t decap_clen = key->minfo->ctext_bytes + key->xinfo->pubkey_bytes;
     int ml_kem_slot = key->xinfo->ml_kem_slot;
     int ret = 0;
+    char *adjusted_propq = NULL;
 
     if (!mlx_kem_have_prvkey(key)) {
         ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_KEY);
@@ -328,7 +355,8 @@ static int mlx_kem_decapsulate(void *vctx, uint8_t *shsec, size_t *slen,
     decap_slen = ML_KEM_SHARED_SECRET_BYTES;
     cbuf = ctext + ml_kem_slot * key->xinfo->pubkey_bytes;
     sbuf = shsec + ml_kem_slot * key->xinfo->shsec_bytes;
-    ctx = EVP_PKEY_CTX_new_from_pkey(key->libctx, key->mkey, key->propq);
+    adjusted_propq = get_adjusted_propq(key->propq);
+    ctx = EVP_PKEY_CTX_new_from_pkey(key->libctx, key->mkey, adjusted_propq ? adjusted_propq : key->propq);
     if (ctx == NULL
         || EVP_PKEY_decapsulate_init(ctx, NULL) <= 0
         || EVP_PKEY_decapsulate(ctx, sbuf, &decap_slen, cbuf, decap_clen) <= 0)
@@ -370,6 +398,7 @@ end:
             ML_KEM_SHARED_SECRET_BYTES + key->xinfo->shsec_bytes);
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(xkey);
+    OPENSSL_free(adjusted_propq);
     return ret;
 }
 
