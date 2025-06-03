@@ -1554,7 +1554,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     int is_prime_field = 1;
     BN_CTX *bnctx = NULL;
     const unsigned char *buf = NULL;
-    int encoding_flag = -1;
+    /* int encoding_flag = -1; */
 #endif
 
     /* This is the simple named group case */
