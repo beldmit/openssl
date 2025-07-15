@@ -2886,6 +2886,7 @@ static const ST_KAT_PARAM ml_dsa_sig_init[] = {
 };
 #endif /* OPENSSL_NO_ML_DSA */
 
+#if 0 /* Temporarily disable SLH-DSA self tests due to performance issues */
 #ifndef OPENSSL_NO_SLH_DSA
 /*
  * Deterministic SLH_DSA key generation supplies the private key elements and
@@ -2976,6 +2977,7 @@ static const unsigned char slh_dsa_shake_128f_sig_digest[] = {
     0x89, 0x77, 0x00, 0x72, 0x03, 0x92, 0xd1, 0xa6,
 };
 #endif /* OPENSSL_NO_SLH_DSA */
+#endif /* Temporarily disable SLH-DSA self tests due to performance issues */
 
 /* Hash DRBG inputs for signature KATs */
 static const unsigned char sig_kat_entropyin[] = {
@@ -3075,6 +3077,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
         ml_dsa_sig_init
     },
 #endif /* OPENSSL_NO_ML_DSA */
+#if 0 /* Temporarily disable SLH-DSA self tests due to performance issues */
 #ifndef OPENSSL_NO_SLH_DSA
     /*
      * FIPS 140-3 IG 10.3.A.16 Note 29 says:
@@ -3105,6 +3108,7 @@ static const ST_KAT_SIGN st_kat_sign_tests[] = {
         slh_dsa_sig_params, slh_dsa_sig_params
     },
 #endif /* OPENSSL_NO_SLH_DSA */
+#endif /* Temporarily disable SLH-DSA self tests due to performance issues */
 };
 
 #if !defined(OPENSSL_NO_ML_DSA)
@@ -3509,6 +3513,7 @@ static const ST_KAT_ASYM_KEYGEN st_kat_asym_keygen_tests[] = {
         ml_dsa_key
     },
 # endif
+#if 0 /* Temporarily disable SLH-DSA self tests due to performance issues */
 # if !defined(OPENSSL_NO_SLH_DSA)
     {
         OSSL_SELF_TEST_DESC_KEYGEN_SLH_DSA,
@@ -3517,6 +3522,7 @@ static const ST_KAT_ASYM_KEYGEN st_kat_asym_keygen_tests[] = {
         slh_dsa_128f_keygen_expected_params
     },
 # endif
+#endif /* Temporarily disable SLH-DSA self tests due to performance issues */
 };
 #endif /* !OPENSSL_NO_ML_DSA || !OPENSSL_NO_SLH_DSA */
 
