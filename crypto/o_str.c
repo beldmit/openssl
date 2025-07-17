@@ -407,7 +407,7 @@ int openssl_strerror_r(int errnum, char *buf, size_t buflen)
 }
 
 int
-#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI)
+#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI) && !defined(RHEL_NO_SYMVER_ATTRIBUTES)
 __attribute__ ((symver ("OPENSSL_strcasecmp@@OPENSSL_3.0.3"),
                     symver ("OPENSSL_strcasecmp@OPENSSL_3.0.1")))
 #endif
@@ -422,7 +422,7 @@ OPENSSL_strcasecmp(const char *s1, const char *s2)
 }
 
 int
-#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI)
+#if !defined(FIPS_MODULE) && !defined(OPENSSL_SYS_UEFI) && !defined(RHEL_NO_SYMVER_ATTRIBUTES)
 __attribute__ ((symver ("OPENSSL_strncasecmp@@OPENSSL_3.0.3"),
                     symver ("OPENSSL_strncasecmp@OPENSSL_3.0.1")))
 #endif
