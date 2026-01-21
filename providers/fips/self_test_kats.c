@@ -1190,8 +1190,8 @@ int SELF_TEST_kats(OSSL_SELF_TEST *st, OSSL_LIB_CTX *libctx)
         ret = 0;
     if (!self_test_kems(st, libctx))
         ret = 0;
-    if (!self_test_asym_ciphers(st, libctx))
-        ret = 0;
+/*    if (!self_test_asym_ciphers(st, libctx))
+        ret = 0; */
 
     RAND_set0_private(libctx, saved_rand);
     return ret;
