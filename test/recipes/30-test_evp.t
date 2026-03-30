@@ -76,13 +76,22 @@ my @files = qw(
                 evppkey_rsa_sigalg.txt
                 evprand.txt
               );
+# Red Hat FIPS: Tests to skip when running with FIPS config
+# (DES, KMAC KDF, and SSKDF are disabled in Red Hat FIPS builds)
+my @fips_skip_files = qw(
+                evpciph_des3_common.txt
+                evpkdf_kbkdf_kmac.txt
+                evpkdf_ss.txt
+              );
 push @files, qw(evpkdf_ssh.txt) unless $no_sshkdf;
 push @files, qw(evpkdf_snmp.txt) unless $no_snmpkdf;
 push @files, qw(evpkdf_srtp.txt) unless $no_srtpkdf;
 push @files, qw(
                 evpkdf_kbkdf_counter.txt
-                evpkdf_kbkdf_kmac.txt
                ) unless $no_kbkdf;
+# Red Hat FIPS: KMAC KDF is disabled in FIPS, so skip in FIPS mode
+push @files, qw(evpkdf_kbkdf_kmac.txt) unless $no_kbkdf;
+# Red Hat FIPS: SSKDF is disabled in FIPS, so skip in FIPS mode
 push @files, qw(evpkdf_ss.txt) unless $no_sskdf;
 push @files, qw(evpkdf_x942.txt) unless $no_x942kdf;
 push @files, qw(evpkdf_x963.txt) unless $no_x963kdf;
@@ -197,8 +206,16 @@ plan tests =>
 
 foreach (@configs) {
     my $conf = srctop_file("test", $_);
+    my $is_fips = ($_ =~ /fips/);
 
     foreach my $f ( @files ) {
+        # Red Hat FIPS: Skip certain tests when running with FIPS config
+        if ($is_fips && grep { $_ eq $f } @fips_skip_files) {
+            SKIP: {
+                skip "Skipping $f in Red Hat FIPS mode (algorithm disabled)", 1;
+            }
+            next;
+        }
         ok(run(test(["evp_test",
                      "-config", $conf,
                      data_file("$f")])),

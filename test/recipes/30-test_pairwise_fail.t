@@ -59,6 +59,8 @@ SKIP: {
 SKIP: {
     skip "Skip DSA tests because of no dsa in this build", 2
         if disabled("dsa");
+    # Red Hat FIPS builds disable DSA support at provider level
+    skip "Skip DSA tests because DSA is disabled in Red Hat FIPS build", 2;
     ok(run(test(["pairwise_fail_test", "-config", $provconf,
                  "-pairwise", "dsa", "-dsaparam", data_file("dsaparam.pem")])),
        "fips provider dsa keygen pairwise failure test");
