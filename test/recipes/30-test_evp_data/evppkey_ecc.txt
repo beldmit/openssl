@@ -3603,13 +3603,14 @@ SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
 Result = KEYOP_INIT_ERROR
 
 # Check the indicator callback is triggered
-FIPSversion = >=3.4.0
-Derive=BOB_cf_prime192v1
-Securitycheck = 1
-Unapproved = 1
-CtrlInit = key-check:0
-PeerKey=ALICE_cf_prime192v1_PUB
-SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
+# Red Hat FIPS: prime192v1 is a weak curve, completely disabled in FIPS - test skipped
+# FIPSversion = >=3.4.0
+# Derive=BOB_cf_prime192v1
+# Securitycheck = 1
+# Unapproved = 1
+# CtrlInit = key-check:0
+# PeerKey=ALICE_cf_prime192v1_PUB
+# SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
 
 Title=prime256v1 curve tests
 
@@ -4558,18 +4559,18 @@ KeyName = ec1
 Ctrl = group:P-256
 
 # Test KeyGen with a curve with < 112 bits of security fails.
-Availablein = fips
-FIPSversion = >=3.4.0
-KeyGen = ec
-KeyName = ec2
-Ctrl = group:P-192
-Result = KEYGEN_GENERATE_ERROR
+# Red Hat FIPS: P-192 is a weak curve, completely disabled in FIPS - test skipped
+# FIPSversion = >=3.4.0
+# KeyGen = ec
+# KeyName = ec2
+# Ctrl = group:P-192
+# Result = KEYGEN_GENERATE_ERROR
 
 # Test KeyGen with a curve with < 112 bits of security is not approved
-Availablein = fips
-FIPSversion = >=3.4.0
-KeyGen = ec
-KeyName = ec3
-Ctrl = group:P-192
-Unapproved = 1
-Ctrl = key-check:0
+# Red Hat FIPS: P-192 is a weak curve, completely disabled in FIPS - test skipped
+# FIPSversion = >=3.4.0
+# KeyGen = ec
+# KeyName = ec3
+# Ctrl = group:P-192
+# Unapproved = 1
+# Ctrl = key-check:0
