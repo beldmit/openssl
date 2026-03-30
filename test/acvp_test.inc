@@ -218,6 +218,11 @@ static const unsigned char ecdsa_sigver_s1[] = {
     0xB1, 0xAC,
 };
 static const struct ecdsa_sigver_st ecdsa_sigver_data[] = {
+    /* Red Hat FIPS: SHA-1 is not allowed for ECDSA signatures
+     * Error: "digest not allowed: digest=SHA-1"
+     * This is an intentional FIPS restriction - SHA-1 is cryptographically weak
+     */
+    /*
     {
         "SHA-1",
         "P-192",
@@ -227,6 +232,7 @@ static const struct ecdsa_sigver_st ecdsa_sigver_data[] = {
         ITM(ecdsa_sigver_s0),
         PASS,
     },
+    */
     {
         "SHA2-512",
         "P-521",
