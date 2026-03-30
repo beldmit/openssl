@@ -72,6 +72,10 @@ DEFINE_RUN_ONCE_STATIC(do_fips_self_test_init)
 static CRYPTO_RWLOCK *self_test_states_lock = NULL;
 static CRYPTO_ONCE fips_self_test_states_lock_init = CRYPTO_ONCE_STATIC_INIT;
 
+/* Track which tests were initially marked as PASSED (disabled algorithms) */
+static enum st_test_state initial_test_states[ST_ID_MAX];
+static int initial_states_captured = 0;
+
 DEFINE_RUN_ONCE_STATIC(do_fips_self_test_states_lock_init)
 {
     self_test_states_lock = CRYPTO_THREAD_lock_new();
@@ -506,13 +510,28 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, void *fips_global,
             }
         }
 
-        if (on_demand_test) {
-            /* ensure all states are cleared so all tests are forcibly
-             * repeated */
+        /* Capture initial states on first run */
+        if (!initial_states_captured) {
             for (int i = 0; i < ST_ID_MAX; i++) {
-                if (!ossl_set_self_test_state(i, SELF_TEST_STATE_INIT)) {
+                if (!ossl_get_self_test_state(i, &initial_test_states[i])) {
                     errored = 1;
                     goto locked_end;
+                }
+            }
+            initial_states_captured = 1;
+        }
+
+        if (on_demand_test) {
+            /* ensure all states are cleared so all tests are forcibly
+             * repeated, but preserve tests that were initially marked as
+             * PASSED (i.e., tests for disabled algorithms like TDES, DSA, RSA-decrypt) */
+            for (int i = 0; i < ST_ID_MAX; i++) {
+                /* Only reset tests that were not initially marked as PASSED */
+                if (initial_test_states[i] != SELF_TEST_STATE_PASSED) {
+                    if (!ossl_set_self_test_state(i, SELF_TEST_STATE_INIT)) {
+                        errored = 1;
+                        goto locked_end;
+                    }
                 }
             }
         }
