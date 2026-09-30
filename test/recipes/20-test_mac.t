@@ -135,8 +135,8 @@ foreach (@mac_fail_tests) {
 }
 
 SKIP: {
-    skip "Skipping FIPS tests", 2
-        if $no_fips;
+    skip "Skipping FIPS tests", 2; #Red Hat
+        #if $no_fips;
 
     my $fipsconf = srctop_file("test", "fips-and-base.cnf");
 
