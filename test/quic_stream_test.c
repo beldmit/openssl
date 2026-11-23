@@ -8,7 +8,38 @@
  */
 #include "internal/packet.h"
 #include "internal/quic_stream.h"
+#include "internal/quic_channel.h"
+#include "../ssl/quic/quic_record_rx_local.h"
 #include "testutil.h"
+
+/* Opaque allocation size for QUIC_CHANNEL - we don't need the full definition */
+#define QUIC_CHANNEL_ALLOC_SIZE 4096
+
+/*
+ * Minimal packet test infrastructure from 3.5.
+ * A received packet as the stream code sees it, without a QRX behind it.
+ * The reference the caller keeps is never released by the stream code, so
+ * the reference count never reaches zero and the packet is never recycled
+ * through the QRX it does not have. It is freed with pkt_test_free() once
+ * the test is done with it.
+ */
+static OSSL_QRX_PKT *pkt_test_new(size_t datagram_len)
+{
+    RXE *rxe = OPENSSL_zalloc(sizeof(*rxe));
+
+    if (rxe == NULL)
+        return NULL;
+
+    rxe->refcount = 1;
+    rxe->datagram_len = datagram_len;
+    rxe->pkt.datagram_len = datagram_len;
+    return &rxe->pkt;
+}
+
+static void pkt_test_free(OSSL_QRX_PKT *pkt)
+{
+    OPENSSL_free((RXE *)pkt);
+}
 
 static int compare_iov(const unsigned char *ref, size_t ref_len,
                        const OSSL_QTX_IOVEC *iov, size_t iov_len)
@@ -376,22 +407,31 @@ static const unsigned char simple_data[] =
 static int test_rstream_simple(int idx)
 {
     QUIC_RSTREAM *rstream = NULL;
+    QUIC_CHANNEL *ch = NULL;
+    QUIC_RSTREAM_QPARM *rsqp = NULL;
+    OSSL_QRX_PKT *pkt[8] = { NULL };
     int ret = 0;
     unsigned char buf[sizeof(simple_data)];
-    size_t readbytes = 0, avail = 0;
+    size_t readbytes = 0, avail = 0, i;
     int fin = 0;
-    int use_rbuf = idx > 1;
     int use_sc = idx % 2;
     int (* read_fn)(QUIC_RSTREAM *, unsigned char *, size_t, size_t *,
                     int *) = use_sc ? test_single_copy_read
                                     : ossl_quic_rstream_read;
 
-    if (!TEST_ptr(rstream = ossl_quic_rstream_new(NULL, NULL, NULL)))
+    /* every frame arrives in a packet, as it does in production */
+    for (i = 0; i < 8; ++i)
+        if (!TEST_ptr(pkt[i] = pkt_test_new(1200)))
+            goto err;
+
+    if (!TEST_ptr(ch = OPENSSL_zalloc(QUIC_CHANNEL_ALLOC_SIZE))
+        || !TEST_ptr(rsqp = ossl_quic_rstream_qparm_new(ch))
+        || !TEST_ptr(rstream = ossl_quic_rstream_new(NULL, NULL, rsqp)))
         goto err;
 
-    if (!TEST_true(ossl_quic_rstream_queue_data(rstream, NULL, 5,
+    if (!TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[0], 5,
                                                 simple_data + 5, 10, 0))
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[1],
                                                    sizeof(simple_data) - 1,
                                                    simple_data + sizeof(simple_data) - 1,
                                                    1, 1))
@@ -399,26 +439,22 @@ static int test_rstream_simple(int idx)
                                              &readbytes, &fin))
         || !TEST_false(fin)
         || !TEST_size_t_eq(readbytes, 0)
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[2],
                                                    sizeof(simple_data) - 10,
                                                    simple_data + sizeof(simple_data) - 10,
                                                    10, 1))
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL, 0,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[3], 0,
                                                    simple_data, 1, 0))
         || !TEST_true(ossl_quic_rstream_peek(rstream, buf, sizeof(buf),
                                              &readbytes, &fin))
         || !TEST_false(fin)
         || !TEST_size_t_eq(readbytes, 1)
         || !TEST_mem_eq(buf, 1, simple_data, 1)
-        || (use_rbuf && !TEST_false(ossl_quic_rstream_move_to_rbuf(rstream)))
-        || (use_rbuf
-            && !TEST_true(ossl_quic_rstream_resize_rbuf(rstream,
-                                                        sizeof(simple_data))))
-        || (use_rbuf && !TEST_true(ossl_quic_rstream_move_to_rbuf(rstream)))
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        /* Ring buffer functionality not included in backport */
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[4],
                                                    0, simple_data,
                                                    10, 0))
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[5],
                                                    sizeof(simple_data),
                                                    NULL,
                                                    0, 1))
@@ -427,7 +463,7 @@ static int test_rstream_simple(int idx)
         || !TEST_false(fin)
         || !TEST_size_t_eq(readbytes, 15)
         || !TEST_mem_eq(buf, 15, simple_data, 15)
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[6],
                                                    15,
                                                    simple_data + 15,
                                                    sizeof(simple_data) - 15, 1))
@@ -442,14 +478,11 @@ static int test_rstream_simple(int idx)
         || !TEST_false(fin)
         || !TEST_size_t_eq(readbytes, 12)
         || !TEST_mem_eq(buf + 2, 12, simple_data + 2, 12)
-        || !TEST_true(ossl_quic_rstream_queue_data(rstream, NULL,
+        || !TEST_true(ossl_quic_rstream_queue_data(rstream, pkt[7],
                                                    sizeof(simple_data),
                                                    NULL,
                                                    0, 1))
-        || (use_rbuf
-            && !TEST_true(ossl_quic_rstream_resize_rbuf(rstream,
-                                                        2 * sizeof(simple_data))))
-        || (use_rbuf && !TEST_true(ossl_quic_rstream_move_to_rbuf(rstream)))
+        /* Ring buffer functionality not included in backport */
         || !TEST_true(read_fn(rstream, buf + 14, 5, &readbytes, &fin))
         || !TEST_false(fin)
         || !TEST_size_t_eq(readbytes, 5)
@@ -459,7 +492,7 @@ static int test_rstream_simple(int idx)
         || !TEST_true(fin)
         || !TEST_size_t_eq(readbytes, sizeof(buf) - 14 - 5)
         || !TEST_mem_eq(buf, sizeof(buf), simple_data, sizeof(simple_data))
-        || (use_rbuf && !TEST_true(ossl_quic_rstream_move_to_rbuf(rstream)))
+        /* Ring buffer functionality not included in backport */
         || !TEST_true(read_fn(rstream, buf, sizeof(buf), &readbytes, &fin))
         || !TEST_true(fin)
         || !TEST_size_t_eq(readbytes, 0))
@@ -469,6 +502,10 @@ static int test_rstream_simple(int idx)
 
  err:
     ossl_quic_rstream_free(rstream);
+    ossl_quic_rstream_qparm_destroy(rsqp);
+    OPENSSL_free(ch);
+    for (i = 0; i < 8; ++i)
+        pkt_test_free(pkt[i]);
     return ret;
 }
 
@@ -477,15 +514,23 @@ static int test_rstream_random(int idx)
     unsigned char *bulk_data = NULL;
     unsigned char *read_buf = NULL;
     QUIC_RSTREAM *rstream = NULL;
-    size_t i, read_off, queued_min, queued_max;
+    QUIC_CHANNEL *ch = NULL;
+    OSSL_QRX_PKT **pkts = NULL;
+    QUIC_RSTREAM_QPARM *rsqp = NULL;
+    size_t i, read_off, queued_min, queued_max, num_pkts = 0;
     const size_t data_size = 10000;
+    /* At most two frames are queued per each of the 100 * 10 iterations */
+    const size_t max_pkts = 100 * 10 * 2;
     int r, s, fin = 0, fin_set = 0;
     int ret = 0;
     size_t readbytes = 0;
 
     if (!TEST_ptr(bulk_data = OPENSSL_malloc(data_size))
         || !TEST_ptr(read_buf = OPENSSL_malloc(data_size))
-        || !TEST_ptr(rstream = ossl_quic_rstream_new(NULL, NULL, NULL)))
+        || !TEST_ptr(pkts = OPENSSL_zalloc(sizeof(*pkts) * max_pkts))
+        || !TEST_ptr(ch = OPENSSL_zalloc(QUIC_CHANNEL_ALLOC_SIZE))
+        || !TEST_ptr(rsqp = ossl_quic_rstream_qparm_new(ch))
+        || !TEST_ptr(rstream = ossl_quic_rstream_new(NULL, NULL, rsqp)))
         goto err;
 
     if (idx % 3 == 0)
@@ -498,6 +543,7 @@ static int test_rstream_random(int idx)
     for (r = 0; r < 100; ++r) {
         for (s = 0; s < 10; ++s) {
             size_t off = (r * 10 + s) * 10, size = 10;
+            OSSL_QRX_PKT *pkt = NULL;
 
             if (test_random() % 10 == 0)
                 /* drop packet */
@@ -506,7 +552,12 @@ static int test_rstream_random(int idx)
             if (off <= queued_min && off + size > queued_min)
                 queued_min = off + size;
 
-            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, NULL, off,
+            /* each frame arrives in its own packet */
+            if (!TEST_ptr(pkt = pkt_test_new(1200)))
+                goto err;
+            pkts[num_pkts++] = pkt;
+
+            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, pkt, off,
                                                         bulk_data + off,
                                                         size, 0)))
                 goto err;
@@ -526,7 +577,12 @@ static int test_rstream_random(int idx)
             if (off <= queued_min && off + size > queued_min)
                 queued_min = off + size;
 
-            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, NULL, off,
+            /* each retransmit arrives in its own packet */
+            if (!TEST_ptr(pkt = pkt_test_new(1200)))
+                goto err;
+            pkts[num_pkts++] = pkt;
+
+            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, pkt, off,
                                                         bulk_data + off,
                                                         size, 0)))
                 goto err;
@@ -550,15 +606,17 @@ static int test_rstream_random(int idx)
             goto err;
         read_off += readbytes;
         queued_min = read_off;
-        if (test_random() % 50 == 0)
-            if (!TEST_true(ossl_quic_rstream_resize_rbuf(rstream,
-                                                         queued_max - read_off + 1))
-                || !TEST_true(ossl_quic_rstream_move_to_rbuf(rstream)))
-                goto err;
+        /* Ring buffer functionality not included in backport */
         if (!fin_set && queued_max >= data_size - test_random() % 200) {
+            OSSL_QRX_PKT *fin_pkt;
+
             fin_set = 1;
             /* Queue empty fin frame */
-            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, NULL, data_size,
+            if (!TEST_ptr(fin_pkt = pkt_test_new(1200)))
+                goto err;
+            pkts[num_pkts++] = fin_pkt;
+
+            if (!TEST_true(ossl_quic_rstream_queue_data(rstream, fin_pkt, data_size,
                                                         NULL, 0, 1)))
                 goto err;
         }
@@ -590,6 +648,13 @@ static int test_rstream_random(int idx)
 
  err:
     ossl_quic_rstream_free(rstream);
+    ossl_quic_rstream_qparm_destroy(rsqp);
+    OPENSSL_free(ch);
+    if (pkts != NULL) {
+        for (i = 0; i < num_pkts; ++i)
+            pkt_test_free(pkts[i]);
+        OPENSSL_free(pkts);
+    }
     OPENSSL_free(bulk_data);
     OPENSSL_free(read_buf);
     return ret;
