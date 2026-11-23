@@ -470,6 +470,11 @@ struct quic_channel_st {
     /* Scratch area for use by RXDP to store decoded ACK ranges. */
     OSSL_QUIC_ACK_RANGE             *ack_range_scratch;
     size_t                          num_ack_range_scratch;
+
+    /*
+     * RX stream quality parameter (shared across all streams in this channel).
+     */
+    QUIC_RSTREAM_QPARM              *rsqp;
 };
 
 # endif
